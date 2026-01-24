@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "DartZoom by Followdarts",
+  "version": "1.6.4",
+  "description": "Controls OBS Move Transition filters based on Autodarts throws",
+  "permissions": ["storage"],
+  "host_permissions": ["https://play.autodarts.io/*"],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://play.autodarts.io/*"],
+      "js": ["injector.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["pageScript.js", "logo.png", "logo-header.png"],
+      "matches": ["https://play.autodarts.io/*"]
+    }
+  ]
+}
