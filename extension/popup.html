@@ -326,23 +326,29 @@
     }
     .action-input::placeholder { color: rgba(255,255,255,0.3); }
     .delay-input {
-      width: 50px;
+      width: 45px;
       flex: none;
       padding: 5px 6px;
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 4px;
+      border-radius: 4px 0 0 4px;
       color: #fff;
       font-size: 10px;
       text-align: center;
+      border-right: none;
     }
     .delay-input:focus {
       outline: none;
       border-color: #00d4ff;
     }
-    .delay-label {
+    .delay-suffix {
+      padding: 5px 6px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 0 4px 4px 0;
+      color: rgba(255,255,255,0.6);
       font-size: 9px;
-      color: rgba(255,255,255,0.4);
+      border-left: none;
     }
     .filter-fields {
       display: none;

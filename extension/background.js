@@ -369,7 +369,13 @@ async function showSegmentCamera(segmentName, keepShowing = false) {
   
   if (!keepShowing) {
     throwDisplayTimeout = setTimeout(async () => {
-      if (isMyTurn) await updatePredictionCamera();
+      throwDisplayTimeout = null;
+      if (isMyTurn) {
+        await updatePredictionCamera();
+      } else {
+        // Turn hat gewechselt - zurück zu Default
+        await returnToDefault();
+      }
     }, settings.throwDuration);
   }
 }
@@ -458,8 +464,11 @@ async function handleStateUpdate(state) {
         throwDisplayTimeout = null;
       }
       
-      // Apply Game End actions (no default filter - let Game End actions control everything)
+      // First return to default, then apply Game End actions
+      // Game End actions can override the default with their own filters
       (async () => {
+        await returnToDefault();
+        await sleep(100);
         await applySources(settings.gameEndHide, false);
         await sleep(50);
         await applySources(settings.gameEndShow, true);
@@ -531,11 +540,6 @@ async function handleStateUpdate(state) {
 }
 
 async function handleTurnChange(myTurn, preserveStreak = false) {
-  if (throwDisplayTimeout) {
-    clearTimeout(throwDisplayTimeout);
-    throwDisplayTimeout = null;
-  }
-  
   // Nur T20 Streak resetten wenn es ein echter Turn-Wechsel ist (nicht beim ersten State)
   if (!preserveStreak) {
     log(`[Turn] Resetting T20 streak (was ${t20Streak})`);
@@ -552,6 +556,12 @@ async function handleTurnChange(myTurn, preserveStreak = false) {
   log(`[Turn] ${myTurn ? 'MY TURN' : 'OPPONENT'}`);
   
   if (myTurn) {
+    // Clear timer only when it's my turn
+    if (throwDisplayTimeout) {
+      clearTimeout(throwDisplayTimeout);
+      throwDisplayTimeout = null;
+    }
+    
     // Erst hide, dann show
     await applySources(settings.myTurnHide, false);
     await sleep(50);
@@ -562,8 +572,16 @@ async function handleTurnChange(myTurn, preserveStreak = false) {
       await updatePredictionCamera();
     }
   } else {
-    // Gegner ist dran - erst auf Default zurück, dann Sources umschalten
-    await returnToDefault();
+    // Gegner ist dran - Zoom bleibt noch für throwDuration, dann Default
+    // Falls noch ein Timer läuft (vom letzten Wurf), diesen weiterlaufen lassen
+    // Falls nicht, neuen Timer setzen
+    if (!throwDisplayTimeout && lastActiveFilter && lastActiveFilter !== settings.defaultFilter) {
+      log(`[Turn] Setting timer to return to default after throw duration`);
+      throwDisplayTimeout = setTimeout(async () => {
+        throwDisplayTimeout = null;
+        await returnToDefault();
+      }, settings.throwDuration);
+    }
     
     // Erst hide, dann show
     await applySources(settings.opponentTurnHide, false);
@@ -822,8 +840,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         throwDisplayTimeout = null;
       }
       
-      // Apply Game End actions (no default filter)
+      // First return to default, then apply Game End actions
       (async () => {
+        await returnToDefault();
+        await sleep(100);
         await applySources(settings.gameEndHide, false);
         await sleep(50);
         await applySources(settings.gameEndShow, true);
@@ -894,6 +914,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       throwDisplayTimeout = null;
     }
     (async () => {
+      await returnToDefault();
+      await sleep(100);
       await applySources(settings.gameEndHide, false);
       await sleep(50);
       await applySources(settings.gameEndShow, true);
@@ -1097,7 +1119,7 @@ function getAvailableFilterKinds() {
 
 // ============== STARTUP ==============
 
-const VERSION = '1.7.0';
+const VERSION = '1.7.2';
 
 chrome.storage.local.get([
   'obsUrl', 'obsPassword', 'enabled', 'username', 

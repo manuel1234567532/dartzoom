@@ -1,6 +1,6 @@
 {
   "name": "dartzoom",
-  "version": "1.7.0",
+  "version": "1.7.2",
   "description": "DartZoom Chrome Extension for Autodarts.io",
   "scripts": {
     "build": "bash build.sh",

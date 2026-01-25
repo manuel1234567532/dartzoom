@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
                    data-field="name"
                    ${isFilter ? 'style="display:none"' : ''}>
             <input type="number" class="delay-input" value="${delayValue}" placeholder="0" min="0" data-field="delay" title="Delay in seconds">
-            <span class="delay-label">s</span>
+            <span class="delay-suffix">sec</span>
             <button class="remove-btn" data-list="${listId}" data-index="${index}">×</button>
           </div>
           <div class="filter-fields">

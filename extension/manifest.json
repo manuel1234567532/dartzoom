@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DartZoom by Followdarts",
-  "version": "1.7.0",
+  "version": "1.7.2",
   "description": "Controls OBS Move Transition filters based on Autodarts throws",
   "permissions": ["storage"],
   "host_permissions": ["https://play.autodarts.io/*"],
