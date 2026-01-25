@@ -1,0 +1,12 @@
+{
+  "name": "dartzoom",
+  "version": "1.7.0",
+  "description": "DartZoom Chrome Extension for Autodarts.io",
+  "scripts": {
+    "build": "bash build.sh",
+    "build:win": "powershell -ExecutionPolicy Bypass -File build.ps1"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "^4.1.1"
+  }
+}

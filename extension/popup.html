@@ -325,6 +325,25 @@
       border-color: #00d4ff;
     }
     .action-input::placeholder { color: rgba(255,255,255,0.3); }
+    .delay-input {
+      width: 50px;
+      flex: none;
+      padding: 5px 6px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 4px;
+      color: #fff;
+      font-size: 10px;
+      text-align: center;
+    }
+    .delay-input:focus {
+      outline: none;
+      border-color: #00d4ff;
+    }
+    .delay-label {
+      font-size: 9px;
+      color: rgba(255,255,255,0.4);
+    }
     .filter-fields {
       display: none;
       flex-direction: column;
@@ -624,6 +643,12 @@
     <div class="input-group">
       <label>Display Duration (ms)</label>
       <input type="number" id="throwDuration" placeholder="2000" value="2000">
+    </div>
+    
+    <div class="input-group">
+      <label>Checkout Score</label>
+      <input type="number" id="checkoutScore" placeholder="170" value="170" min="2" max="501">
+      <div class="input-hint">Score at which checkout zoom starts (default: 170)</div>
     </div>
     
     <button class="btn btn-create-filters" id="createFiltersBtn">

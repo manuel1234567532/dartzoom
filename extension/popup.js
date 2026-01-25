@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterSourceInput = document.getElementById('filterSource');
   const defaultFilterInput = document.getElementById('defaultFilter');
   const throwDurationInput = document.getElementById('throwDuration');
+  const checkoutScoreInput = document.getElementById('checkoutScore');
   const zoomSoundInput = document.getElementById('zoomSound');
   const defaultSoundInput = document.getElementById('defaultSound');
   
@@ -62,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
       filterSource: filterSourceInput.value.trim(),
       defaultFilter: defaultFilterInput.value.trim(),
       throwDuration: parseInt(throwDurationInput.value) || 2000,
+      checkoutScore: parseInt(checkoutScoreInput.value) || 170,
       zoomSound: zoomSoundInput.value.trim(),
       defaultSound: defaultSoundInput.value.trim(),
       ...actionListValues
@@ -93,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     listEl.innerHTML = items.map((action, index) => {
       const isFilter = action.type === 'filter';
+      const delayValue = action.delay || 0;
       return `
         <div class="action-item ${isFilter ? 'filter-type' : ''}" data-list="${listId}" data-index="${index}">
           <div class="action-row">
@@ -106,6 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
                    placeholder="${action.type === 'scene' ? 'Scene name' : 'Source name'}"
                    data-field="name"
                    ${isFilter ? 'style="display:none"' : ''}>
+            <input type="number" class="delay-input" value="${delayValue}" placeholder="0" min="0" data-field="delay" title="Delay in seconds">
+            <span class="delay-label">s</span>
             <button class="remove-btn" data-list="${listId}" data-index="${index}">×</button>
           </div>
           <div class="filter-fields">
@@ -153,7 +158,12 @@ document.addEventListener('DOMContentLoaded', () => {
       item.querySelectorAll('input').forEach(input => {
         input.addEventListener('input', (e) => {
           const field = e.target.dataset.field;
-          actionLists[listId][index][field] = e.target.value;
+          let value = e.target.value;
+          // Convert delay to number
+          if (field === 'delay') {
+            value = parseInt(value) || 0;
+          }
+          actionLists[listId][index][field] = value;
           autoSave();
         });
       });
@@ -231,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chrome.storage.local.get([
       'obsPassword', 'username', 'filterScene', 'filterSource', 
-      'defaultFilter', 'throwDuration', 'lastThrow',
+      'defaultFilter', 'throwDuration', 'checkoutScore', 'lastThrow',
       'zoomSound', 'defaultSound',
       'gameOnShow', 'gameOnHide', 'gameEndShow', 'gameEndHide',
       'myTurnShow', 'myTurnHide', 'opponentTurnShow', 'opponentTurnHide'
@@ -242,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (result.filterSource) filterSourceInput.value = result.filterSource;
       if (result.defaultFilter) defaultFilterInput.value = result.defaultFilter;
       if (result.throwDuration) throwDurationInput.value = result.throwDuration;
+      if (result.checkoutScore) checkoutScoreInput.value = result.checkoutScore;
       if (result.zoomSound) zoomSoundInput.value = result.zoomSound;
       if (result.defaultSound) defaultSoundInput.value = result.defaultSound;
       if (result.lastThrow) {
@@ -315,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStatus();
 
   // Auto-save on input changes
-  const textInputs = [obsUrlInput, obsPasswordInput, usernameInput, filterSceneInput, filterSourceInput, defaultFilterInput, throwDurationInput, zoomSoundInput, defaultSoundInput];
+  const textInputs = [obsUrlInput, obsPasswordInput, usernameInput, filterSceneInput, filterSourceInput, defaultFilterInput, throwDurationInput, checkoutScoreInput, zoomSoundInput, defaultSoundInput];
   textInputs.forEach(input => {
     input.addEventListener('input', autoSave);
   });

@@ -42,6 +42,7 @@ let settings = {
   filterSource: 'Boardcam',
   defaultFilter: 'Default',
   throwDuration: 2000,
+  checkoutScore: 170,  // Score at which checkout zoom starts
   // Sound settings
   zoomSound: '',
   defaultSound: '',
@@ -384,7 +385,7 @@ function getPredictedSegment() {
     return null;
   }
   
-  if (remainingScore > 170) {
+  if (remainingScore > settings.checkoutScore) {
     if (t20Streak >= 2) {
       log(`[Predict] T20 streak ${t20Streak} - staying on T20`);
       return 'T20';
@@ -392,7 +393,7 @@ function getPredictedSegment() {
     return null;
   }
   
-  // CHECKOUT RANGE (2-170) - Use Autodarts checkout guide
+  // CHECKOUT RANGE - Use Autodarts checkout guide
   if (checkoutGuide && checkoutGuide.length > 0) {
     const nextDart = checkoutGuide[0];
     if (nextDart && nextDart.name) {
@@ -440,7 +441,7 @@ async function handleStateUpdate(state) {
     dartsThrown = currentTurn?.throws?.length || 0;
   }
   
-  const inCheckout = previousScore <= 170 && previousScore > 0;
+  const inCheckout = previousScore <= settings.checkoutScore && previousScore > 0;
   
   log(`[Game] Score: ${myCurrentScore}, Darts: ${dartsThrown}/3, Busted: ${isBusted}`);
   
@@ -557,7 +558,7 @@ async function handleTurnChange(myTurn, preserveStreak = false) {
     await applySources(settings.myTurnShow, true);
     
     await returnToDefault();
-    if (myCurrentScore <= 170 && myCurrentScore > 0) {
+    if (myCurrentScore <= settings.checkoutScore && myCurrentScore > 0) {
       await updatePredictionCamera();
     }
   } else {
@@ -575,45 +576,68 @@ async function handleTurnChange(myTurn, preserveStreak = false) {
 async function applySources(actionList, visible) {
   if (!actionList || actionList.length === 0) return;
   
+  // Separate immediate actions (delay 0) from delayed actions
+  const immediateActions = [];
+  const delayedActions = [];
+  
   for (const action of actionList) {
     // Handle legacy string format (just source names)
     if (typeof action === 'string') {
-      if (action.trim()) {
-        await setSourceVisibility(action.trim(), visible);
-      }
+      immediateActions.push({ type: 'source', name: action, delay: 0 });
       continue;
     }
     
-    // Handle new object format
     if (!action || !action.type) continue;
     
-    switch (action.type) {
-      case 'source':
-        if (action.name && action.name.trim()) {
-          await setSourceVisibility(action.name.trim(), visible);
-        }
-        break;
-        
-      case 'scene':
-        // Scene: only "show" makes sense (switch to scene)
-        if (visible && action.name && action.name.trim()) {
-          await switchToScene(action.name.trim());
-        }
-        break;
-        
-      case 'filter':
-        if (action.scene && action.source && action.filter) {
-          await setAnyFilterEnabled(
-            action.scene.trim(),
-            action.source.trim(),
-            action.filter.trim(),
-            visible
-          );
-        }
-        break;
+    const delay = (action.delay || 0) * 1000; // Convert seconds to ms
+    if (delay > 0) {
+      delayedActions.push({ ...action, delayMs: delay });
+    } else {
+      immediateActions.push(action);
     }
-    
+  }
+  
+  // Execute immediate actions
+  for (const action of immediateActions) {
+    await executeAction(action, visible);
     await sleep(30);
+  }
+  
+  // Schedule delayed actions
+  for (const action of delayedActions) {
+    setTimeout(() => {
+      executeAction(action, visible);
+    }, action.delayMs);
+    console.log(`[Action] Scheduled "${action.name || action.filter}" with ${action.delayMs}ms delay`);
+  }
+}
+
+// Execute a single action
+async function executeAction(action, visible) {
+  switch (action.type) {
+    case 'source':
+      if (action.name && action.name.trim()) {
+        await setSourceVisibility(action.name.trim(), visible);
+      }
+      break;
+      
+    case 'scene':
+      // Scene: only "show" makes sense (switch to scene)
+      if (visible && action.name && action.name.trim()) {
+        await switchToScene(action.name.trim());
+      }
+      break;
+      
+    case 'filter':
+      if (action.scene && action.source && action.filter) {
+        await setAnyFilterEnabled(
+          action.scene.trim(),
+          action.source.trim(),
+          action.filter.trim(),
+          visible
+        );
+      }
+      break;
   }
 }
 
@@ -635,9 +659,10 @@ async function handleThrow(segment) {
   
   const isT20 = segmentName === 'T20';
   
-  // Score > 170 OR Score not yet loaded (0) = we're in "T20 zone" (not checkout)
+  // Score > checkoutScore OR Score not yet loaded (0) = we're in "T20 zone" (not checkout)
   // Bei Match-Start ist Score oft noch 0, also T20 Streak trotzdem zählen
-  const inT20Zone = myCurrentScore > 170 || myCurrentScore === 0;
+  const checkoutThreshold = settings.checkoutScore || 170;
+  const inT20Zone = myCurrentScore > checkoutThreshold || myCurrentScore === 0;
   
   if (inT20Zone) {
     if (isT20) {
@@ -660,7 +685,7 @@ async function handleThrow(segment) {
   
   t20Streak = 0;
   
-  if (predictedSegment && myCurrentScore <= 170) {
+  if (predictedSegment && myCurrentScore <= checkoutThreshold) {
     if (segmentName === predictedSegment) {
       log(`[Predict] ✓ HIT ${predictedSegment}!`);
     }
@@ -1072,11 +1097,11 @@ function getAvailableFilterKinds() {
 
 // ============== STARTUP ==============
 
-const VERSION = '1.6.4';
+const VERSION = '1.7.0';
 
 chrome.storage.local.get([
   'obsUrl', 'obsPassword', 'enabled', 'username', 
-  'filterScene', 'filterSource', 'defaultFilter', 'throwDuration',
+  'filterScene', 'filterSource', 'defaultFilter', 'throwDuration', 'checkoutScore',
   'zoomSound', 'defaultSound',
   'gameOnShow', 'gameOnHide', 'gameEndShow', 'gameEndHide',
   'myTurnShow', 'myTurnHide', 'opponentTurnShow', 'opponentTurnHide'
@@ -1092,6 +1117,7 @@ chrome.storage.local.get([
   if (result.filterSource) settings.filterSource = result.filterSource;
   if (result.defaultFilter) settings.defaultFilter = result.defaultFilter;
   if (result.throwDuration) settings.throwDuration = result.throwDuration;
+  if (result.checkoutScore) settings.checkoutScore = result.checkoutScore;
   
   // Sound settings
   if (result.zoomSound) settings.zoomSound = result.zoomSound;
@@ -1111,6 +1137,7 @@ chrome.storage.local.get([
   log('[DartZoom] Scene:', settings.filterScene);
   log('[DartZoom] Source:', settings.filterSource);
   log('[DartZoom] Default Filter:', settings.defaultFilter);
+  log('[DartZoom] Checkout Score:', settings.checkoutScore);
   log('[DartZoom] Zoom Sound:', settings.zoomSound || '(not set)');
   log('[DartZoom] Default Sound:', settings.defaultSound || '(not set)');
   
