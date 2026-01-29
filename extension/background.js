@@ -37,12 +37,15 @@ let settings = {
   obsUrl: 'ws://localhost:4455',
   obsPassword: '',
   enabled: true,
-  username: '',
+  usernames: [],  // Changed from username to usernames array
   filterScene: 'Board',
   filterSource: 'Boardcam',
   defaultFilter: 'Default',
   throwDuration: 2000,
   checkoutScore: 170,  // Score at which checkout zoom starts
+  filterDuration: 800,  // Duration for Move Source filters in ms
+  filterEasing: 2,  // Easing function index (default: Kubisch/Cubic = 2)
+  filterEasingType: 3,  // Easing type: 0=None, 1=In, 2=Out, 3=InOut (default: Ease In and Out = 3)
   // Sound settings
   zoomSound: '',
   defaultSound: '',
@@ -55,6 +58,31 @@ let settings = {
   myTurnHide: [],
   opponentTurnShow: [],
   opponentTurnHide: []
+};
+
+// Easing function mapping for OBS Move Source filter (easing_function_match)
+// 1=Quadratisch, 2=Kubisch, 3=Quartisch, 4=Quintisch, 5=Sinus, 
+// 6=Kreisfunktion, 7=Exponentiell, 8=Elastisch, 9=Aufspringen, 10=Zurückfedern
+const EASING_FUNCTIONS = {
+  1: 'Quadratic',
+  2: 'Cubic',
+  3: 'Quartic',
+  4: 'Quintic',
+  5: 'Sine',
+  6: 'Circular',
+  7: 'Exponential',
+  8: 'Elastic',
+  9: 'Bounce',
+  10: 'Back'
+};
+
+// Easing type mapping (easing_match)
+// 0=None, 1=Ease In, 2=Ease Out, 3=Ease In and Out
+const EASING_TYPES = {
+  0: 'None',
+  1: 'In',
+  2: 'Out',
+  3: 'InOut'
 };
 
 // Filter mapping - defined separately so it's never overwritten
@@ -83,6 +111,18 @@ const FILTER_MAPPING = {
   'MISS': 'Miss', 'Miss': 'Miss', 'OUT': 'Miss', 'Out': 'Miss', '0': 'Miss'
 };
 
+// All filter names for batch operations
+const ALL_FILTER_NAMES = [
+  'Default',
+  'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10',
+  'S11', 'S12', 'S13', 'S14', 'S15', 'S16', 'S17', 'S18', 'S19', 'S20',
+  'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10',
+  'D11', 'D12', 'D13', 'D14', 'D15', 'D16', 'D17', 'D18', 'D19', 'D20',
+  'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10',
+  'T11', 'T12', 'T13', 'T14', 'T15', 'T16', 'T17', 'T18', 'T19', 'T20',
+  'Bull', 'OuterBull', 'Miss'
+];
+
 // Function to get filter from mapping
 function getFilterForSegment(segmentName) {
   if (!segmentName) return null;
@@ -103,6 +143,16 @@ function getFilterForSegment(segmentName) {
   
   log(`[Filter] No mapping found for: "${segmentName}"`);
   return null;
+}
+
+// Check if a player name matches any of our tracked usernames
+function isTrackedPlayer(playerName) {
+  if (!playerName || !settings.usernames || settings.usernames.length === 0) return false;
+  const lowerPlayerName = playerName.toLowerCase().trim();
+  const matched = settings.usernames.some(username => 
+    username && username.toLowerCase().trim() === lowerPlayerName
+  );
+  return matched;
 }
 
 // ============== CRYPTO HELPERS ==============
@@ -232,13 +282,11 @@ async function setFilterEnabled(filterName, enabled) {
 // If activating a filter on filterSource, deactivates the previous active filter first
 async function setAnyFilterEnabled(sceneName, sourceName, filterName, enabled) {
   if (!sceneName || !sourceName || !filterName || !obsIdentified) {
-    console.log(`[Filter] Cannot set - scene=${sceneName}, source=${sourceName}, filter=${filterName}`);
     return false;
   }
   
   // If activating a filter on the camera source, deactivate the previous one first
   if (enabled && sourceName === settings.filterSource && lastActiveFilter && lastActiveFilter !== filterName) {
-    console.log(`[Filter] Deactivating previous filter: ${lastActiveFilter}`);
     await setFilterEnabled(lastActiveFilter, false);
   }
   
@@ -249,13 +297,11 @@ async function setAnyFilterEnabled(sceneName, sourceName, filterName, enabled) {
       filterEnabled: enabled
     }, (_, err) => {
       if (!err) {
-        console.log(`[Filter] ${sourceName} -> ${filterName} ${enabled ? '✓ ON' : '✗ OFF'}`);
         // Track active filter if it's on the camera source
         if (sourceName === settings.filterSource && enabled) {
           lastActiveFilter = filterName;
         }
       } else {
-        console.log(`[Filter] Error setting ${sourceName} -> ${filterName}:`, err);
       }
       resolve(!err);
     });
@@ -271,10 +317,8 @@ async function switchToScene(sceneName) {
       sceneName: sceneName
     }, (_, err) => {
       if (!err) {
-        console.log(`[Scene] Switched to "${sceneName}"`);
         currentScene = sceneName;
       } else {
-        console.log(`[Scene] Error switching to "${sceneName}":`, err);
       }
       resolve(!err);
     });
@@ -293,7 +337,6 @@ async function setSourceVisibility(sourceName, visible) {
   return new Promise((resolve) => {
     sendRequest('GetSceneItemId', { sceneName: sceneName, sourceName }, (data) => {
       if (!data) { 
-        console.log(`[Source] Could not find "${sourceName}" in scene "${sceneName}"`);
         resolve(false); 
         return; 
       }
@@ -303,9 +346,7 @@ async function setSourceVisibility(sourceName, visible) {
         sceneItemEnabled: visible
       }, (_, err) => {
         if (!err) {
-          console.log(`[Source] ${sourceName} ${visible ? '✓ VISIBLE' : '✗ HIDDEN'} in ${sceneName}`);
         } else {
-          console.log(`[Source] Error setting visibility for ${sourceName}:`, err);
         }
         resolve(!err);
       });
@@ -418,27 +459,30 @@ function getPredictedSegment() {
 async function handleStateUpdate(state) {
   const { player, players, gameScores, turnScore, turnBusted, checkoutGuide: guide, finished, gameFinished } = state;
   
-  log(`[State] Players: ${players?.map(p => p.name).join(', ')}, Looking for: "${settings.username}"`);
+  // Always log this for debugging multiple usernames
   
-  if (!players || !settings.username) {
-    log(`[State] Missing data - players: ${!!players}, username: "${settings.username}"`);
+  if (!players || !settings.usernames || settings.usernames.length === 0) {
     return;
   }
   
   currentPlayers = players;
   
-  myPlayerIndex = players.findIndex(p => 
-    p.name && p.name.toLowerCase() === settings.username.toLowerCase()
-  );
+  // Check if current player is one of our tracked players
+  const currentPlayerName = players[player]?.name;
+  const currentPlayerIsTracked = currentPlayerName && isTrackedPlayer(currentPlayerName);
+  
+  
+  // Find the tracked player for score tracking (use first found)
+  myPlayerIndex = players.findIndex(p => p.name && isTrackedPlayer(p.name));
   
   if (myPlayerIndex === -1) {
-    log(`[State] Player "${settings.username}" not found in: ${players.map(p => p.name).join(', ')}`);
     return;
   }
   
   const previousScore = myCurrentScore;
-  if (gameScores && gameScores[myPlayerIndex] !== undefined) {
-    myCurrentScore = gameScores[myPlayerIndex];
+  // Use score of current player if they're tracked, otherwise keep previous score
+  if (currentPlayerIsTracked && gameScores && gameScores[player] !== undefined) {
+    myCurrentScore = gameScores[player];
   }
   currentTurnScore = turnScore || 0;
   checkoutGuide = guide;
@@ -455,7 +499,6 @@ async function handleStateUpdate(state) {
   
   if (finished || gameFinished) {
     if (gameActive) {
-      console.log('[Game] ===== GAME END - Match finished =====');
       gameActive = false;
       t20Streak = 0;
       isFirstStateUpdate = true;  // Reset für nächstes Match
@@ -486,27 +529,22 @@ async function handleStateUpdate(state) {
   }
   
   const wasMyTurn = isMyTurn;
-  isMyTurn = (player === myPlayerIndex);
+  isMyTurn = currentPlayerIsTracked;  // True if ANY tracked player is currently throwing
   
   chrome.runtime.sendMessage({ type: 'turnChanged', isMyTurn }).catch(() => {});
   
   if (isFirstStateUpdate) {
     log(`[State] First state (GAME ON) - t20Streak: ${t20Streak}, dartsThrown: ${dartsThrown}, isMyTurn: ${isMyTurn}`);
-    console.log('[Match] ===== GAME ON - First state detected =====');
-    console.log('[Match] gameOnShow:', settings.gameOnShow);
-    console.log('[Match] gameOnHide:', settings.gameOnHide);
     isFirstStateUpdate = false;
     gameActive = true;  // Mark game as active
     
     // Apply Game On sources
     (async () => {
       if (settings.gameOnHide && settings.gameOnHide.length > 0) {
-        console.log('[Match] Hiding:', settings.gameOnHide);
         await applySources(settings.gameOnHide, false);
       }
       await sleep(50);
       if (settings.gameOnShow && settings.gameOnShow.length > 0) {
-        console.log('[Match] Showing:', settings.gameOnShow);
         await applySources(settings.gameOnShow, true);
       }
     })();
@@ -629,7 +667,6 @@ async function applySources(actionList, visible) {
     setTimeout(() => {
       executeAction(action, visible);
     }, action.delayMs);
-    console.log(`[Action] Scheduled "${action.name || action.filter}" with ${action.delayMs}ms delay`);
   }
 }
 
@@ -790,6 +827,88 @@ async function resetToDefault() {
   }
 }
 
+// ============== FILTER UPDATE FUNCTIONS ==============
+
+// Update a single filter's settings (duration, easing function and type)
+function updateFilterSettings(sourceName, filterName, duration, easingFunction, easingType) {
+  return new Promise((resolve) => {
+    // First get current settings, then update only the ones we want
+    sendRequest('GetSourceFilter', {
+      sourceName: sourceName,
+      filterName: filterName
+    }, (currentData, getErr) => {
+      if (getErr) {
+        resolve(false);
+        return;
+      }
+      
+      // Merge current settings with new values
+      const currentSettings = currentData?.filterSettings || {};
+      const newSettings = {
+        ...currentSettings,
+        duration: duration,
+        easing_match: easingType,               // Easing Type: 0=None, 1=In, 2=Out, 3=InOut
+        easing_function_match: easingFunction   // Easing Function: 1=Quadratic, 2=Cubic, etc.
+      };
+      
+      
+      sendRequest('SetSourceFilterSettings', {
+        sourceName: sourceName,
+        filterName: filterName,
+        filterSettings: newSettings
+      }, (data, err) => {
+        if (err) {
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      });
+    });
+  });
+}
+
+// Update all filters with new duration, easing function and type
+async function updateAllFilters(sourceName, duration, easingFunction, easingType) {
+  if (!sourceName || !obsIdentified) {
+    chrome.runtime.sendMessage({ type: 'filterUpdateDone', success: false }).catch(() => {});
+    return;
+  }
+  
+  
+  const total = ALL_FILTER_NAMES.length;
+  let successCount = 0;
+  let errorCount = 0;
+  
+  for (let i = 0; i < ALL_FILTER_NAMES.length; i++) {
+    const filterName = ALL_FILTER_NAMES[i];
+    
+    // Send progress update
+    chrome.runtime.sendMessage({
+      type: 'filterUpdateProgress',
+      current: i + 1,
+      total: total,
+      filterName: filterName
+    }).catch(() => {});
+    
+    const success = await updateFilterSettings(sourceName, filterName, duration, easingFunction, easingType);
+    if (success) {
+      successCount++;
+    } else {
+      errorCount++;
+    }
+    
+    // Small delay between updates (longer because we do get+set per filter)
+    await sleep(100);
+  }
+  
+  chrome.runtime.sendMessage({ 
+    type: 'filterUpdateDone', 
+    success: errorCount === 0,
+    successCount,
+    errorCount
+  }).catch(() => {});
+}
+
 // ============== MESSAGE HANDLING ==============
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -808,11 +927,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.type === 'matchStart') {
-    console.log('[Match] matchStart event received');
     
     // If a game was still active, end it first
     if (gameActive) {
-      console.log('[Match] Previous game still active - applying Game End first');
       (async () => {
         await applySources(settings.gameEndHide, false);
         await sleep(50);
@@ -829,30 +946,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.type === 'matchEnd') {
-    console.log('[Match] matchEnd event received:', message.reason);
+    // Stop any pending timers
+    if (throwDisplayTimeout) {
+      clearTimeout(throwDisplayTimeout);
+      throwDisplayTimeout = null;
+    }
     
-    // Only apply Game End if game was active
-    if (gameActive) {
-      console.log('[Match] ===== GAME END - Match cancelled/ended =====');
-      gameActive = false;
-      isFirstStateUpdate = true;
+    // Always return to default on match end
+    (async () => {
+      await returnToDefault();
       
-      // Stop any pending timers
-      if (throwDisplayTimeout) {
-        clearTimeout(throwDisplayTimeout);
-        throwDisplayTimeout = null;
-      }
-      
-      // First return to default, then apply Game End actions
-      (async () => {
-        await returnToDefault();
+      // Only apply Game End actions if game was active
+      if (gameActive) {
+        gameActive = false;
+        isFirstStateUpdate = true;
         await sleep(100);
         await applySources(settings.gameEndHide, false);
         await sleep(50);
         await applySources(settings.gameEndShow, true);
-      })();
-    }
+      }
+    })();
     
+    gameActive = false;
+    isFirstStateUpdate = true;
     sendResponse({ success: true });
   }
   
@@ -863,16 +979,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       obsUrl: settings.obsUrl,
       currentScene: currentScene,
       isMyTurn: isMyTurn,
-      username: settings.username,
+      usernames: settings.usernames,
       score: myCurrentScore
     });
   }
   
   if (message.type === 'updateSettings') {
-    console.log('[Settings] Updating settings:', message.settings);
     settings = { ...settings, ...message.settings };
-    console.log('[Settings] gameOnShow now:', settings.gameOnShow);
-    console.log('[Settings] gameOnHide now:', settings.gameOnHide);
     chrome.storage.local.set(message.settings);
     if (ws) ws.close();
     obsIdentified = false;
@@ -900,7 +1013,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.type === 'testGameOn') {
-    console.log('[Test] Game On triggered');
     (async () => {
       await applySources(settings.gameOnHide, false);
       await sleep(50);
@@ -910,7 +1022,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.type === 'testGameEnd') {
-    console.log('[Test] Game End triggered');
     // Stop any pending timers
     if (throwDisplayTimeout) {
       clearTimeout(throwDisplayTimeout);
@@ -930,7 +1041,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       // First get available filter kinds to find correct one
       const kinds = await getAvailableFilterKinds();
-      console.log('[Filters] Available kinds:', kinds);
       
       // Look for the correct Move Source filter (not Move Transition Override)
       // The plugin ID is "move_source_filter" for Move Source
@@ -947,14 +1057,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       
       if (moveFilterKind) {
-        console.log('[Filters] Using filter kind:', moveFilterKind);
       } else {
-        console.log('[Filters] WARNING: Move Source Filter not found! Available:', kinds.join(', '));
-        console.log('[Filters] Make sure the Move Source Filter plugin is installed in OBS!');
       }
       
       await createAllFilters(message.sourceName, moveFilterKind || 'move_source_filter');
     })();
+    sendResponse({ success: true });
+  }
+  
+  if (message.type === 'updateAllFilters') {
+    updateAllFilters(message.sourceName, message.duration, message.easing, message.easingType);
     sendResponse({ success: true });
   }
   
@@ -970,7 +1082,6 @@ function getSourceFilters(sourceName) {
       sourceName: sourceName
     }, (data, err) => {
       if (err) {
-        console.log('[Filters] Error getting filters:', err);
         resolve([]);
       } else {
         resolve(data?.filters || []);
@@ -987,10 +1098,8 @@ function deleteSourceFilter(sourceName, filterName) {
       filterName: filterName
     }, (data, err) => {
       if (err) {
-        console.log(`[Filters] Error deleting "${filterName}":`, err);
         resolve(false);
       } else {
-        console.log(`[Filters] Deleted "${filterName}"`);
         resolve(true);
       }
     });
@@ -1000,7 +1109,6 @@ function deleteSourceFilter(sourceName, filterName) {
 // Delete all filters from a source
 async function deleteAllFilters(sourceName) {
   const filters = await getSourceFilters(sourceName);
-  console.log(`[Filters] Found ${filters.length} existing filters to delete`);
   
   for (const filter of filters) {
     await deleteSourceFilter(sourceName, filter.filterName);
@@ -1012,13 +1120,11 @@ async function deleteAllFilters(sourceName) {
 
 async function createAllFilters(sourceName, filterKind = 'move_source_filter') {
   if (!sourceName || !obsIdentified) {
-    console.log('[Filters] Cannot create - not connected or no source name');
     chrome.runtime.sendMessage({ type: 'filtersDone', success: false }).catch(() => {});
     return;
   }
   
   // First, delete all existing filters
-  console.log(`[Filters] Deleting all existing filters on "${sourceName}"...`);
   chrome.runtime.sendMessage({
     type: 'filterProgress',
     current: 0,
@@ -1027,34 +1133,16 @@ async function createAllFilters(sourceName, filterKind = 'move_source_filter') {
   }).catch(() => {});
   
   const deletedCount = await deleteAllFilters(sourceName);
-  console.log(`[Filters] Deleted ${deletedCount} filters`);
   
   await sleep(200);
   
-  console.log(`[Filters] Creating filters on "${sourceName}" with kind "${filterKind}"`);
   
-  // All filter names to create
-  const filterNames = [
-    'Default',
-    // Singles
-    'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9', 'S10',
-    'S11', 'S12', 'S13', 'S14', 'S15', 'S16', 'S17', 'S18', 'S19', 'S20',
-    // Doubles
-    'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10',
-    'D11', 'D12', 'D13', 'D14', 'D15', 'D16', 'D17', 'D18', 'D19', 'D20',
-    // Triples
-    'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10',
-    'T11', 'T12', 'T13', 'T14', 'T15', 'T16', 'T17', 'T18', 'T19', 'T20',
-    // Special
-    'Bull', 'OuterBull', 'Miss'
-  ];
-  
-  const total = filterNames.length;
+  const total = ALL_FILTER_NAMES.length;
   let successCount = 0;
   let errorCount = 0;
   
-  for (let i = 0; i < filterNames.length; i++) {
-    const filterName = filterNames[i];
+  for (let i = 0; i < ALL_FILTER_NAMES.length; i++) {
+    const filterName = ALL_FILTER_NAMES[i];
     
     // Send progress update
     chrome.runtime.sendMessage({
@@ -1075,7 +1163,6 @@ async function createAllFilters(sourceName, filterKind = 'move_source_filter') {
     await sleep(100);
   }
   
-  console.log(`[Filters] Done! Success: ${successCount}, Errors: ${errorCount}`);
   chrome.runtime.sendMessage({ 
     type: 'filtersDone', 
     success: errorCount === 0,
@@ -1091,14 +1178,14 @@ function createMoveSourceFilter(sourceName, filterName, filterKind) {
       filterName: filterName,
       filterKind: filterKind,
       filterSettings: {
-        duration: 800
+        duration: settings.filterDuration,
+        easing_match: settings.filterEasingType,        // Easing Type: 0=None, 1=In, 2=Out, 3=InOut
+        easing_function_match: settings.filterEasing    // Easing Function: 1=Quadratic, 2=Cubic, etc.
       }
     }, (data, err) => {
       if (err) {
-        console.log(`[Filters] Error creating "${filterName}":`, err);
         resolve(false);
       } else {
-        console.log(`[Filters] Created "${filterName}" successfully`);
         resolve(true);
       }
     });
@@ -1110,10 +1197,8 @@ function getAvailableFilterKinds() {
   return new Promise((resolve) => {
     sendRequest('GetSourceFilterKindList', {}, (data, err) => {
       if (err) {
-        console.log('[Filters] Error getting filter kinds:', err);
         resolve([]);
       } else {
-        console.log('[Filters] Available filter kinds:', data);
         resolve(data?.sourceFilterKinds || []);
       }
     });
@@ -1122,11 +1207,12 @@ function getAvailableFilterKinds() {
 
 // ============== STARTUP ==============
 
-const VERSION = '1.7.3';
+const VERSION = '1.8.0';
 
 chrome.storage.local.get([
-  'obsUrl', 'obsPassword', 'enabled', 'username', 
+  'obsUrl', 'obsPassword', 'enabled', 'usernames', 'username',  // Support both old and new
   'filterScene', 'filterSource', 'defaultFilter', 'throwDuration', 'checkoutScore',
+  'filterDuration', 'filterEasing', 'filterEasingType',
   'zoomSound', 'defaultSound',
   'gameOnShow', 'gameOnHide', 'gameEndShow', 'gameEndHide',
   'myTurnShow', 'myTurnHide', 'opponentTurnShow', 'opponentTurnHide'
@@ -1137,12 +1223,25 @@ chrome.storage.local.get([
   if (result.obsUrl) settings.obsUrl = result.obsUrl;
   if (result.obsPassword) settings.obsPassword = result.obsPassword;
   if (result.enabled !== undefined) settings.enabled = result.enabled;
-  if (result.username) settings.username = result.username;
+  
+  // Handle migration from old single username to usernames array
+  if (result.usernames && Array.isArray(result.usernames)) {
+    settings.usernames = result.usernames;
+  } else if (result.username) {
+    // Migrate old single username
+    settings.usernames = [result.username];
+    // Save migrated data
+    chrome.storage.local.set({ usernames: settings.usernames });
+  }
+  
   if (result.filterScene) settings.filterScene = result.filterScene;
   if (result.filterSource) settings.filterSource = result.filterSource;
   if (result.defaultFilter) settings.defaultFilter = result.defaultFilter;
   if (result.throwDuration) settings.throwDuration = result.throwDuration;
   if (result.checkoutScore) settings.checkoutScore = result.checkoutScore;
+  if (result.filterDuration) settings.filterDuration = result.filterDuration;
+  if (result.filterEasing !== undefined) settings.filterEasing = result.filterEasing;
+  if (result.filterEasingType !== undefined) settings.filterEasingType = result.filterEasingType;
   
   // Sound settings
   if (result.zoomSound) settings.zoomSound = result.zoomSound;
@@ -1158,11 +1257,14 @@ chrome.storage.local.get([
   if (result.opponentTurnShow) settings.opponentTurnShow = result.opponentTurnShow;
   if (result.opponentTurnHide) settings.opponentTurnHide = result.opponentTurnHide;
   
-  log('[DartZoom] Username:', settings.username || '(not set)');
+  log('[DartZoom] Usernames:', settings.usernames.join(', ') || '(not set)');
   log('[DartZoom] Scene:', settings.filterScene);
   log('[DartZoom] Source:', settings.filterSource);
   log('[DartZoom] Default Filter:', settings.defaultFilter);
   log('[DartZoom] Checkout Score:', settings.checkoutScore);
+  log('[DartZoom] Filter Duration:', settings.filterDuration);
+  log('[DartZoom] Filter Easing:', settings.filterEasing);
+  log('[DartZoom] Filter Easing Type:', settings.filterEasingType);
   log('[DartZoom] Zoom Sound:', settings.zoomSound || '(not set)');
   log('[DartZoom] Default Sound:', settings.defaultSound || '(not set)');
   

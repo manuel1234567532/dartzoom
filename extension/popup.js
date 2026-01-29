@@ -11,17 +11,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const enabledToggle = document.getElementById('enabled');
   const obsUrlInput = document.getElementById('obsUrl');
   const obsPasswordInput = document.getElementById('obsPassword');
-  const usernameInput = document.getElementById('username');
   const filterSceneInput = document.getElementById('filterScene');
   const filterSourceInput = document.getElementById('filterSource');
   const defaultFilterInput = document.getElementById('defaultFilter');
   const throwDurationInput = document.getElementById('throwDuration');
   const checkoutScoreInput = document.getElementById('checkoutScore');
+  const filterDurationInput = document.getElementById('filterDuration');
+  const filterEasingSelect = document.getElementById('filterEasing');
+  const filterEasingTypeSelect = document.getElementById('filterEasingType');
   const zoomSoundInput = document.getElementById('zoomSound');
   const defaultSoundInput = document.getElementById('defaultSound');
   
   const saveBtn = document.getElementById('saveBtn');
   const reconnectBtn = document.getElementById('reconnectBtn');
+
+  // Usernames list
+  let usernames = [];
 
   // Action lists data - now arrays of objects
   // Format: { type: 'source'|'scene'|'filter', name: '', scene: '', source: '', filter: '' }
@@ -58,12 +63,15 @@ document.addEventListener('DOMContentLoaded', () => {
       obsUrl: obsUrlInput.value.trim() || 'ws://localhost:4455',
       obsPassword: obsPasswordInput.value,
       enabled: enabledToggle.checked,
-      username: usernameInput.value.trim(),
+      usernames: usernames.filter(u => u && u.trim() !== ''),
       filterScene: filterSceneInput.value.trim(),
       filterSource: filterSourceInput.value.trim(),
       defaultFilter: defaultFilterInput.value.trim(),
       throwDuration: parseInt(throwDurationInput.value) || 2000,
       checkoutScore: parseInt(checkoutScoreInput.value) || 170,
+      filterDuration: parseInt(filterDurationInput.value) || 800,
+      filterEasing: parseInt(filterEasingSelect.value) || 2,
+      filterEasingType: parseInt(filterEasingTypeSelect.value) || 3,
       zoomSound: zoomSoundInput.value.trim(),
       defaultSound: defaultSoundInput.value.trim(),
       ...actionListValues
@@ -80,6 +88,57 @@ document.addEventListener('DOMContentLoaded', () => {
       checkSetup();
     });
   }
+
+  // ============== USERNAMES LIST ==============
+
+  function renderUsernameList() {
+    const listEl = document.getElementById('usernameList');
+    if (!listEl) return;
+    
+    if (usernames.length === 0) {
+      // Add at least one empty input
+      usernames.push('');
+    }
+    
+    listEl.innerHTML = usernames.map((username, index) => `
+      <div class="username-item" data-index="${index}">
+        <input type="text" class="username-input" value="${username}" placeholder="Autodarts Username">
+        <button class="remove-btn" data-index="${index}" ${usernames.length <= 1 ? 'style="visibility:hidden"' : ''}>×</button>
+      </div>
+    `).join('');
+    
+    // Add event listeners
+    listEl.querySelectorAll('.username-input').forEach((input, index) => {
+      input.addEventListener('input', (e) => {
+        usernames[index] = e.target.value;
+        autoSave();
+      });
+    });
+    
+    listEl.querySelectorAll('.remove-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt(e.target.dataset.index);
+        usernames.splice(index, 1);
+        renderUsernameList();
+        immediateSave();
+      });
+    });
+  }
+
+  // Add username button
+  document.getElementById('addUsernameBtn').addEventListener('click', () => {
+    usernames.push('');
+    renderUsernameList();
+    
+    // Focus the new input
+    const listEl = document.getElementById('usernameList');
+    const inputs = listEl.querySelectorAll('.username-input');
+    if (inputs.length > 0) {
+      inputs[inputs.length - 1].focus();
+    }
+  });
+
+  // ============== ACTION LISTS ==============
 
   // Render an action list with type selector
   function renderActionList(listId) {
@@ -197,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Setup add buttons
-  document.querySelectorAll('.add-btn').forEach(btn => {
+  document.querySelectorAll('.add-btn[data-list]').forEach(btn => {
     btn.addEventListener('click', () => {
       const listId = btn.dataset.list;
       addActionItem(listId);
@@ -226,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadStatus() {
     chrome.runtime.sendMessage({ type: 'getStatus' }, (response) => {
       if (response) {
-        obsUrlInput.value = response.obsUrl || 'ws://localhost:4455';
+        // Don't set obsUrl here - let storage.local.get handle it
         enabledToggle.checked = response.enabled !== false;
         updateStatusUI(response.connected, response.currentScene);
         
@@ -240,19 +299,33 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     chrome.storage.local.get([
-      'obsPassword', 'username', 'filterScene', 'filterSource', 
-      'defaultFilter', 'throwDuration', 'checkoutScore', 'lastThrow',
+      'obsUrl', 'obsPassword', 'usernames', 'username', 'filterScene', 'filterSource', 
+      'defaultFilter', 'throwDuration', 'checkoutScore', 'filterDuration', 'filterEasing', 'filterEasingType', 'lastThrow',
       'zoomSound', 'defaultSound',
       'gameOnShow', 'gameOnHide', 'gameEndShow', 'gameEndHide',
       'myTurnShow', 'myTurnHide', 'opponentTurnShow', 'opponentTurnHide'
     ], (result) => {
+      obsUrlInput.value = result.obsUrl || 'ws://localhost:4455';
       if (result.obsPassword) obsPasswordInput.value = result.obsPassword;
-      if (result.username) usernameInput.value = result.username;
+      
+      // Handle migration from old single username to usernames array
+      if (result.usernames && Array.isArray(result.usernames)) {
+        usernames = result.usernames;
+      } else if (result.username) {
+        usernames = [result.username];
+      } else {
+        usernames = [''];
+      }
+      renderUsernameList();
+      
       if (result.filterScene) filterSceneInput.value = result.filterScene;
       if (result.filterSource) filterSourceInput.value = result.filterSource;
       if (result.defaultFilter) defaultFilterInput.value = result.defaultFilter;
       if (result.throwDuration) throwDurationInput.value = result.throwDuration;
       if (result.checkoutScore) checkoutScoreInput.value = result.checkoutScore;
+      if (result.filterDuration) filterDurationInput.value = result.filterDuration;
+      if (result.filterEasing !== undefined) filterEasingSelect.value = result.filterEasing;
+      if (result.filterEasingType !== undefined) filterEasingTypeSelect.value = result.filterEasingType;
       if (result.zoomSound) zoomSoundInput.value = result.zoomSound;
       if (result.defaultSound) defaultSoundInput.value = result.defaultSound;
       if (result.lastThrow) {
@@ -290,13 +363,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   function checkSetup() {
-    const username = usernameInput.value.trim();
+    const validUsernames = usernames.filter(u => u && u.trim() !== '');
     const filterSource = filterSourceInput.value.trim();
     const defaultFilter = defaultFilterInput.value.trim();
     
     const setupIndicator = document.getElementById('setupIndicator');
     
-    if (!username || !filterSource || !defaultFilter) {
+    if (validUsernames.length === 0 || !filterSource || !defaultFilter) {
       setupIndicator.style.display = 'flex';
       turnIndicator.style.display = 'none';
       return false;
@@ -326,11 +399,13 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStatus();
 
   // Auto-save on input changes
-  const textInputs = [obsUrlInput, obsPasswordInput, usernameInput, filterSceneInput, filterSourceInput, defaultFilterInput, throwDurationInput, checkoutScoreInput, zoomSoundInput, defaultSoundInput];
+  const textInputs = [obsUrlInput, obsPasswordInput, filterSceneInput, filterSourceInput, defaultFilterInput, throwDurationInput, checkoutScoreInput, filterDurationInput, zoomSoundInput, defaultSoundInput];
   textInputs.forEach(input => {
     input.addEventListener('input', autoSave);
   });
   
+  filterEasingSelect.addEventListener('change', autoSave);
+  filterEasingTypeSelect.addEventListener('change', autoSave);
   enabledToggle.addEventListener('change', immediateSave);
   saveBtn.addEventListener('click', immediateSave);
 
@@ -404,12 +479,40 @@ document.addEventListener('DOMContentLoaded', () => {
         createFiltersBtn.disabled = false;
       }, 3000);
     }
+    if (message.type === 'filterUpdateProgress') {
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
+      progressFill.style.width = `${(message.current / message.total) * 100}%`;
+      progressText.textContent = `${message.current} / ${message.total} - ${message.filterName}`;
+    }
+    if (message.type === 'filterUpdateDone') {
+      document.getElementById('progressModal').classList.remove('show');
+      const updateFiltersBtn = document.getElementById('updateFiltersBtn');
+      
+      if (message.success) {
+        updateFiltersBtn.innerHTML = '<span class="btn-icon">✓</span> Filters Updated!';
+        updateFiltersBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      } else if (message.successCount > 0) {
+        updateFiltersBtn.innerHTML = `<span class="btn-icon">⚠</span> ${message.successCount}/${message.successCount + message.errorCount} Updated`;
+        updateFiltersBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+      } else {
+        updateFiltersBtn.innerHTML = '<span class="btn-icon">✗</span> Failed - Check Console';
+        updateFiltersBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      }
+      
+      setTimeout(() => {
+        updateFiltersBtn.innerHTML = '<span class="btn-icon">🔄</span> Update Filter Settings';
+        updateFiltersBtn.style.background = '';
+        updateFiltersBtn.disabled = false;
+      }, 3000);
+    }
   });
 
   // Create Filters Button Logic
   const createFiltersBtn = document.getElementById('createFiltersBtn');
   const confirmModal = document.getElementById('confirmModal');
   const progressModal = document.getElementById('progressModal');
+  const progressHeader = document.getElementById('progressHeader');
   const modalSourceName = document.getElementById('modalSourceName');
   const modalCancel = document.getElementById('modalCancel');
   const modalConfirm = document.getElementById('modalConfirm');
@@ -430,6 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   modalConfirm.addEventListener('click', () => {
     confirmModal.classList.remove('show');
+    progressHeader.textContent = 'Creating Filters...';
     progressModal.classList.add('show');
     
     const progressFill = document.getElementById('progressFill');
@@ -449,5 +553,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === confirmModal) {
       confirmModal.classList.remove('show');
     }
+  });
+
+  // Update Filters Button Logic
+  const updateFiltersBtn = document.getElementById('updateFiltersBtn');
+  
+  updateFiltersBtn.addEventListener('click', () => {
+    const source = filterSourceInput.value.trim();
+    if (!source) {
+      alert('Please enter a Source name first!');
+      return;
+    }
+    
+    const duration = parseInt(filterDurationInput.value) || 800;
+    const easing = parseInt(filterEasingSelect.value) || 6;
+    const easingType = parseInt(filterEasingTypeSelect.value) || 2;
+    
+    progressHeader.textContent = 'Updating Filters...';
+    progressModal.classList.add('show');
+    
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    progressFill.style.width = '0%';
+    progressText.textContent = '0 / 64';
+    
+    updateFiltersBtn.disabled = true;
+    
+    chrome.runtime.sendMessage({
+      type: 'updateAllFilters',
+      sourceName: source,
+      duration: duration,
+      easing: easing,
+      easingType: easingType
+    });
   });
 });

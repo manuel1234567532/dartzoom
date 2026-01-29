@@ -12,7 +12,7 @@
       
       // Log all events with 'event' field to debug
       if (msg.data && msg.data.event) {
-        console.log('[DartZoom PageScript] Event received:', msg.data.event);
+        log('[DartZoom PageScript] Event received:', msg.data.event);
       }
       
       // Throw event
@@ -31,7 +31,6 @@
       
       // Match start event
       if (msg.data && (msg.data.event === 'match-started' || msg.data.event === 'leg-started')) {
-        console.log('[DartZoom PageScript] ===== MATCH START EVENT =====', msg.data.event);
         window.dispatchEvent(new CustomEvent('autodarts-match-start', { 
           detail: { matchId: msg.data.matchId }
         }));
@@ -41,7 +40,6 @@
       // Match end/cancel event - catch all possible end scenarios
       const endEvents = ['match-finished', 'match-cancelled', 'match-deleted', 'delete', 'match-aborted', 'aborted', 'cancelled', 'finished'];
       if (msg.data && msg.data.event && endEvents.includes(msg.data.event)) {
-        console.log('[DartZoom PageScript] ===== MATCH END EVENT =====', msg.data.event);
         window.dispatchEvent(new CustomEvent('autodarts-match-end', { 
           detail: { matchId: msg.data.matchId, reason: msg.data.event }
         }));

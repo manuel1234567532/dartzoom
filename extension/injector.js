@@ -22,7 +22,6 @@ window.addEventListener('autodarts-throw', (event) => {
 });
 
 window.addEventListener('autodarts-match-start', (event) => {
-  console.log('[DartZoom Injector] Received match-start event, forwarding to background');
   safeSendMessage({
     type: 'matchStart',
     matchId: event.detail.matchId
@@ -30,7 +29,6 @@ window.addEventListener('autodarts-match-start', (event) => {
 });
 
 window.addEventListener('autodarts-match-end', (event) => {
-  console.log('[DartZoom Injector] Received match-end event, forwarding to background');
   safeSendMessage({
     type: 'matchEnd',
     matchId: event.detail.matchId,
