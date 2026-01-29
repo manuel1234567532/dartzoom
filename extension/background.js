@@ -370,6 +370,8 @@ async function showSegmentCamera(segmentName, keepShowing = false) {
   if (!keepShowing) {
     throwDisplayTimeout = setTimeout(async () => {
       throwDisplayTimeout = null;
+      if (!gameActive) return;  // Game ended - don't do anything
+      
       if (isMyTurn) {
         await updatePredictionCamera();
       } else {
@@ -522,7 +524,7 @@ async function handleStateUpdate(state) {
       if (inCheckout && dartsThrown > 0) {
         log(`[State] Checkout - waiting 1.5s`);
         setTimeout(async () => {
-          if (isMyTurn && dartsThrown < 3 && !isBusted) {
+          if (gameActive && isMyTurn && dartsThrown < 3 && !isBusted) {
             updatePredictionCamera();
           }
         }, 1500);
@@ -531,7 +533,7 @@ async function handleStateUpdate(state) {
       }
     } else {
       setTimeout(async () => {
-        if (isMyTurn && dartsThrown >= 3) {
+        if (gameActive && isMyTurn && dartsThrown >= 3) {
           await returnToDefault();
         }
       }, 2000);
@@ -579,6 +581,7 @@ async function handleTurnChange(myTurn, preserveStreak = false) {
       log(`[Turn] Setting timer to return to default after throw duration`);
       throwDisplayTimeout = setTimeout(async () => {
         throwDisplayTimeout = null;
+        if (!gameActive) return;  // Game ended - don't do anything
         await returnToDefault();
       }, settings.throwDuration);
     }
@@ -1119,7 +1122,7 @@ function getAvailableFilterKinds() {
 
 // ============== STARTUP ==============
 
-const VERSION = '1.7.2';
+const VERSION = '1.7.3';
 
 chrome.storage.local.get([
   'obsUrl', 'obsPassword', 'enabled', 'username', 
