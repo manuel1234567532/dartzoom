@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "DartZoom by Followdarts",
+  "name": "DartZoom - Automated Camera Zoom",
   "version": "1.8.0",
   "description": "Controls OBS Move Transition filters based on Autodarts throws",
   "permissions": ["storage"],
@@ -28,6 +28,9 @@
       "128": "icon128.png"
     }
   },
+  "content_security_policy": {
+  "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' https://unpkg.com; font-src https://unpkg.com;"
+},
   "web_accessible_resources": [
     {
       "resources": ["pageScript.js", "logo.png", "logo-header.png"],

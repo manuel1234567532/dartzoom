@@ -17,6 +17,7 @@ New-Item -ItemType Directory -Path $DistDir | Out-Null
 Write-Host "📁 Kopiere statische Dateien..." -ForegroundColor Green
 Copy-Item "$SrcDir\manifest.json" $DistDir
 Copy-Item "$SrcDir\popup.html" $DistDir
+Copy-Item "$SrcDir\popup.css" $DistDir
 Copy-Item "$SrcDir\*.png" $DistDir -ErrorAction SilentlyContinue
 
 Write-Host "🔐 Obfuskiere JavaScript..." -ForegroundColor Green

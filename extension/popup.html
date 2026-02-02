@@ -2,653 +2,13 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      width: 380px;
-      min-height: 400px;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: #fff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding: 16px;
-    }
-    .header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      position: relative;
-    }
-    .header-logo { width: 120px; }
-    .header h1 {
-      font-size: 18px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #00d4ff, #0066ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .version-badge {
-      position: absolute;
-      top: 0;
-      right: 0;
-      font-size: 10px;
-      background: rgba(0, 212, 255, 0.2);
-      color: #00d4ff;
-      padding: 2px 8px;
-      border-radius: 10px;
-      border: 1px solid rgba(0, 212, 255, 0.3);
-    }
-    .status-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #ef4444;
-      transition: background 0.3s;
-    }
-    .status-dot.connected {
-      background: #22c55e;
-      box-shadow: 0 0 8px #22c55e;
-    }
-    .status-text { font-size: 13px; color: rgba(255,255,255,0.8); }
-    .scene-text { font-size: 11px; color: rgba(255,255,255,0.5); margin-left: auto; }
-    .turn-indicator {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-    .turn-indicator.my-turn {
-      background: rgba(34, 197, 94, 0.2);
-      border: 1px solid rgba(34, 197, 94, 0.4);
-      color: #22c55e;
-    }
-    .turn-indicator.enemy-turn {
-      background: rgba(239, 68, 68, 0.2);
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      color: #ef4444;
-    }
-    .setup-indicator {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      font-size: 12px;
-      background: rgba(251, 191, 36, 0.15);
-      border: 1px solid rgba(251, 191, 36, 0.4);
-      color: #fbbf24;
-    }
-    .stats-row {
-      display: none;
-      justify-content: space-between;
-      padding: 8px 12px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 8px;
-      margin-bottom: 12px;
-      font-size: 12px;
-    }
-    .stat-item { display: flex; flex-direction: column; align-items: center; }
-    .stat-label { color: rgba(255,255,255,0.5); font-size: 10px; }
-    .stat-value { font-weight: 600; color: #00d4ff; }
-    .section { margin-bottom: 16px; }
-    .section-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: rgba(255,255,255,0.5);
-      margin-bottom: 8px;
-    }
-    .input-group { margin-bottom: 10px; }
-    .input-group label {
-      display: block;
-      font-size: 12px;
-      color: rgba(255,255,255,0.7);
-      margin-bottom: 4px;
-    }
-    .input-group input, .input-group select {
-      width: 100%;
-      padding: 8px 10px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 6px;
-      color: #fff;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-    .input-group input:focus, .input-group select:focus {
-      outline: none;
-      border-color: #00d4ff;
-      background: rgba(255,255,255,0.12);
-    }
-    .input-group input::placeholder { color: rgba(255,255,255,0.3); }
-    .input-group select option {
-      background: #1a1a2e;
-      color: #fff;
-    }
-    .input-hint { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 3px; }
-    .input-row { display: flex; gap: 10px; }
-    .input-row .input-group { flex: 1; }
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 8px;
-      margin-bottom: 12px;
-    }
-    .toggle-label { font-size: 13px; }
-    .toggle { position: relative; width: 44px; height: 24px; }
-    .toggle input { opacity: 0; width: 0; height: 0; }
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255,255,255,0.2);
-      border-radius: 24px;
-      transition: 0.3s;
-    }
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background: white;
-      border-radius: 50%;
-      transition: 0.3s;
-    }
-    .toggle input:checked + .toggle-slider { background: #00d4ff; }
-    .toggle input:checked + .toggle-slider:before { transform: translateX(20px); }
-    .button-row { display: flex; gap: 8px; margin-bottom: 12px; }
-    .btn {
-      flex: 1;
-      padding: 10px 16px;
-      border: none;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, #00d4ff, #0099cc);
-      color: #000;
-    }
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
-    }
-    .btn-secondary {
-      background: rgba(255,255,255,0.1);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.2);
-    }
-    .btn-secondary:hover { background: rgba(255,255,255,0.15); }
-    .test-section {
-      background: rgba(255,255,255,0.03);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-    .test-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    .test-btn {
-      padding: 8px 4px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 6px;
-      color: #fff;
-      font-size: 11px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .test-btn:hover {
-      background: rgba(0, 212, 255, 0.2);
-      border-color: #00d4ff;
-    }
-    .test-btn.wide { grid-column: span 2; }
-    .discord-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 10px 16px;
-      background: #5865F2;
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
-    }
-    .discord-btn:hover {
-      background: #4752C4;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
-    }
-    .discord-btn svg { width: 20px; height: 20px; fill: currentColor; }
-    
-    /* Source List Styles */
-    .source-list-container {
-      background: rgba(255,255,255,0.03);
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 8px;
-    }
-    .source-list-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
-    }
-    .source-list-title {
-      font-size: 11px;
-      color: rgba(255,255,255,0.6);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .source-list-title .icon { font-size: 12px; }
-    .source-list-title.show .icon { color: #22c55e; }
-    .source-list-title.hide .icon { color: #ef4444; }
-    .add-btn {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(255,255,255,0.05);
-      color: #00d4ff;
-      font-size: 14px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-    }
-    .add-btn:hover {
-      background: rgba(0, 212, 255, 0.2);
-      border-color: #00d4ff;
-    }
-    .source-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .action-item {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      padding: 8px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-    .action-row {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-    .action-type {
-      width: 70px;
-      padding: 5px 6px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 4px;
-      color: #fff;
-      font-size: 10px;
-      cursor: pointer;
-    }
-    .action-type:focus {
-      outline: none;
-      border-color: #00d4ff;
-    }
-    .action-input {
-      flex: 1;
-      padding: 5px 8px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 4px;
-      color: #fff;
-      font-size: 11px;
-      min-width: 0;
-    }
-    .action-input:focus {
-      outline: none;
-      border-color: #00d4ff;
-    }
-    .action-input::placeholder { color: rgba(255,255,255,0.3); }
-    .delay-input {
-      width: 45px;
-      flex: none;
-      padding: 5px 6px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 4px 0 0 4px;
-      color: #fff;
-      font-size: 10px;
-      text-align: center;
-      border-right: none;
-    }
-    .delay-input:focus {
-      outline: none;
-      border-color: #00d4ff;
-    }
-    .delay-suffix {
-      padding: 5px 6px;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 0 4px 4px 0;
-      color: rgba(255,255,255,0.6);
-      font-size: 9px;
-      border-left: none;
-    }
-    .filter-fields {
-      display: none;
-      flex-direction: column;
-      gap: 4px;
-      margin-top: 4px;
-      padding-top: 6px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-    }
-    .action-item.filter-type .filter-fields {
-      display: flex;
-    }
-    .filter-field {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .filter-label {
-      font-size: 10px;
-      color: rgba(255,255,255,0.5);
-      min-width: 45px;
-    }
-    .remove-btn {
-      width: 20px;
-      height: 20px;
-      border-radius: 4px;
-      border: none;
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
-      font-size: 12px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      flex-shrink: 0;
-    }
-    .remove-btn:hover {
-      background: rgba(239, 68, 68, 0.4);
-    }
-    
-    /* Username List Styles */
-    .username-list-container {
-      background: rgba(255,255,255,0.03);
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 8px;
-    }
-    .username-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .username-item {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    .username-input {
-      flex: 1;
-      padding: 8px 10px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 6px;
-      color: #fff;
-      font-size: 13px;
-    }
-    .username-input:focus {
-      outline: none;
-      border-color: #00d4ff;
-      background: rgba(255,255,255,0.12);
-    }
-    .username-input::placeholder { color: rgba(255,255,255,0.3); }
-    
-    /* Collapsible sections */
-    .collapsible {
-      background: rgba(255,255,255,0.03);
-      border-radius: 8px;
-      margin-bottom: 12px;
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-    .collapsible-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 12px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .collapsible-header:hover {
-      background: rgba(255,255,255,0.03);
-    }
-    .collapsible-title {
-      font-size: 12px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .collapsible-title .emoji { font-size: 14px; }
-    .collapsible-arrow {
-      transition: transform 0.2s;
-      color: rgba(255,255,255,0.5);
-      font-size: 10px;
-    }
-    .collapsible.open .collapsible-arrow {
-      transform: rotate(180deg);
-    }
-    .collapsible-content {
-      display: none;
-      padding: 0 12px 12px;
-    }
-    .collapsible.open .collapsible-content {
-      display: block;
-    }
-    .sub-section {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-    .sub-section:first-child {
-      margin-top: 0;
-      padding-top: 0;
-      border-top: none;
-    }
-    .sub-title {
-      font-size: 11px;
-      color: rgba(255,255,255,0.5);
-      margin-bottom: 8px;
-    }
-    
-    /* Create Filters Button */
-    .btn-create-filters {
-      width: 100%;
-      padding: 10px 16px;
-      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s;
-      margin-bottom: 8px;
-    }
-    .btn-create-filters:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-    }
-    .btn-create-filters:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    .btn-icon { font-size: 14px; }
-    
-    /* Update Filters Button */
-    .btn-update-filters {
-      width: 100%;
-      padding: 10px 16px;
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s;
-    }
-    .btn-update-filters:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    }
-    .btn-update-filters:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    /* Modal Styles */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-overlay.show {
-      display: flex;
-    }
-    .modal {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
-      padding: 20px;
-      max-width: 320px;
-      width: 90%;
-    }
-    .modal-header {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      text-align: center;
-    }
-    .modal-body {
-      font-size: 12px;
-      color: rgba(255,255,255,0.8);
-      margin-bottom: 16px;
-    }
-    .modal-body p {
-      margin-bottom: 8px;
-    }
-    .modal-source {
-      background: rgba(255,255,255,0.1);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-family: monospace;
-      text-align: center;
-    }
-    .modal-warning {
-      color: #fbbf24;
-      font-weight: 500;
-      padding: 8px;
-      background: rgba(251, 191, 36, 0.1);
-      border-radius: 6px;
-      text-align: center;
-    }
-    .modal-buttons {
-      display: flex;
-      gap: 8px;
-    }
-    .modal-buttons .btn {
-      flex: 1;
-    }
-    .btn-danger {
-      background: linear-gradient(135deg, #ef4444, #dc2626);
-      color: #fff;
-      border: none;
-    }
-    .btn-danger:hover {
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-    }
-    
-    /* Progress Bar */
-    .progress-bar {
-      width: 100%;
-      height: 8px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    .progress-fill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(135deg, #00d4ff, #0066ff);
-      border-radius: 4px;
-      transition: width 0.2s;
-    }
-    .progress-text {
-      text-align: center;
-      font-size: 12px;
-      color: rgba(255,255,255,0.6);
-    }
-  </style>
+  <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="header">
     <img src="logo-header.png" alt="DartZoom" class="header-logo">
-    <h1>DartZoom by Followdarts</h1>
-    <span class="version-badge">v1.8.0</span>
+    <span class="version-badge">v1.8.1</span>
   </div>
   
   <div class="status-row">
@@ -662,7 +22,8 @@
   </div>
   
   <div class="setup-indicator" id="setupIndicator">
-    <span>⚠️ Please configure Usernames, Source and Default Filter</span>
+    <i class="bx bx-error"></i>
+    <span>Please configure Usernames, Source and Default Filter</span>
   </div>
   
   <div class="stats-row" id="statsRow">
@@ -700,8 +61,8 @@
     <div class="section-title">Autodarts - Tracked Players</div>
     <div class="username-list-container">
       <div class="source-list-header">
-        <span class="source-list-title"><span class="icon">👤</span> Usernames</span>
-        <button class="add-btn" id="addUsernameBtn">+</button>
+        <span class="source-list-title"><i class="bx bx-user"></i> Usernames</span>
+        <button class="add-btn" id="addUsernameBtn"><i class="bx bx-plus"></i></button>
       </div>
       <div class="username-list" id="usernameList"></div>
     </div>
@@ -720,7 +81,7 @@
         <input type="text" id="filterSource" placeholder="Boardcam">
       </div>
     </div>
-    <div class="input-hint" style="margin-top: -6px; margin-bottom: 10px;">OBS scene and source containing the Move Transition filters</div>
+    <div class="input-hint hint-row-spacing">OBS scene and source containing the Move Transition filters</div>
     
     <div class="input-group">
       <label>Default Filter</label>
@@ -769,27 +130,27 @@
         </select>
       </div>
     </div>
-    <div class="input-hint" style="margin-top: -6px; margin-bottom: 10px;">Duration and easing for Move Source filter animations</div>
+    <div class="input-hint hint-row-spacing">Duration and easing for Move Source filter animations</div>
     
     <button class="btn btn-create-filters" id="createFiltersBtn">
-      <span class="btn-icon">⚡</span> Create All Cam Filters
+      <i class="bx bx-bolt-circle"></i> Create All Cam Filters
     </button>
-    <div class="input-hint" style="margin-top: -4px; margin-bottom: 10px;">Creates Move Source filters for all segments (deletes existing filters first)</div>
+    <div class="input-hint hint-after-btn">Creates Move Source filters for all segments (deletes existing filters first)</div>
     
     <button class="btn btn-update-filters" id="updateFiltersBtn">
-      <span class="btn-icon">🔄</span> Update Filter Settings
+      <i class="bx bx-refresh"></i> Update Filter Settings
     </button>
-    <div class="input-hint" style="margin-top: 6px;">Updates duration and easing on all existing filters (keeps positions)</div>
+    <div class="input-hint hint-after-update">Updates duration and easing on all existing filters (keeps positions)</div>
   </div>
   
   <!-- Confirmation Modal -->
   <div class="modal-overlay" id="confirmModal">
     <div class="modal">
-      <div class="modal-header">⚠️ Create Filters</div>
+      <div class="modal-header"><i class="bx bx-error"></i> Create Filters</div>
       <div class="modal-body">
         <p>This will create <strong>64 Move Source filters</strong> on:</p>
         <p class="modal-source" id="modalSourceName">-</p>
-        <p class="modal-warning">⚠️ All existing filters on this source will be DELETED first!</p>
+        <p class="modal-warning"><i class="bx bx-error"></i> All existing filters on this source will be DELETED first!</p>
         <p>Filters: Default, S1-S20, D1-D20, T1-T20, Bull, OuterBull, Miss</p>
       </div>
       <div class="modal-buttons">
@@ -815,11 +176,11 @@
   <!-- Sound Settings Section -->
   <div class="collapsible" id="soundSection">
     <div class="collapsible-header">
-      <span class="collapsible-title"><span class="emoji">🔊</span> Sound Effects</span>
-      <span class="collapsible-arrow">▼</span>
+      <span class="collapsible-title"><i class="bx bx-volume-full"></i> Sound Effects</span>
+      <span class="collapsible-arrow"><i class="bx bx-chevron-down"></i></span>
     </div>
     <div class="collapsible-content">
-      <div class="input-hint" style="margin-bottom: 10px;">Create Media Sources in OBS with your sound files, then enter their names here.</div>
+      <div class="input-hint hint-section-intro">Create Media Sources in OBS with your sound files, then enter their names here.</div>
       <div class="input-group">
         <label>Zoom Sound (Media Source)</label>
         <input type="text" id="zoomSound" placeholder="e.g. ZoomSound">
@@ -836,21 +197,21 @@
   <!-- Game On Section -->
   <div class="collapsible" id="gameOnSection">
     <div class="collapsible-header">
-      <span class="collapsible-title"><span class="emoji">🎯</span> Game On (First Throw)</span>
-      <span class="collapsible-arrow">▼</span>
+      <span class="collapsible-title"><i class="bx bx-target-lock"></i> Game On (First Throw)</span>
+      <span class="collapsible-arrow"><i class="bx bx-chevron-down"></i></span>
     </div>
     <div class="collapsible-content">
       <div class="source-list-container">
         <div class="source-list-header">
-          <span class="source-list-title show"><span class="icon">👁</span> Show Actions</span>
-          <button class="add-btn" data-list="gameOnShow">+</button>
+          <span class="source-list-title show"><i class="bx bx-show"></i> Show Actions</span>
+          <button class="add-btn" data-list="gameOnShow"><i class="bx bx-plus"></i></button>
         </div>
         <div class="source-list" id="gameOnShowList"></div>
       </div>
       <div class="source-list-container">
         <div class="source-list-header">
-          <span class="source-list-title hide"><span class="icon">🚫</span> Hide Actions</span>
-          <button class="add-btn" data-list="gameOnHide">+</button>
+          <span class="source-list-title hide"><i class="bx bx-hide"></i> Hide Actions</span>
+          <button class="add-btn" data-list="gameOnHide"><i class="bx bx-plus"></i></button>
         </div>
         <div class="source-list" id="gameOnHideList"></div>
       </div>
@@ -860,21 +221,21 @@
   <!-- Game End Section -->
   <div class="collapsible" id="gameEndSection">
     <div class="collapsible-header">
-      <span class="collapsible-title"><span class="emoji">🏁</span> Game End (Match Finished)</span>
-      <span class="collapsible-arrow">▼</span>
+      <span class="collapsible-title"><i class="bx bx-trophy"></i> Game End (Match Finished)</span>
+      <span class="collapsible-arrow"><i class="bx bx-chevron-down"></i></span>
     </div>
     <div class="collapsible-content">
       <div class="source-list-container">
         <div class="source-list-header">
-          <span class="source-list-title show"><span class="icon">👁</span> Show Actions</span>
-          <button class="add-btn" data-list="gameEndShow">+</button>
+          <span class="source-list-title show"><i class="bx bx-show"></i> Show Actions</span>
+          <button class="add-btn" data-list="gameEndShow"><i class="bx bx-plus"></i></button>
         </div>
         <div class="source-list" id="gameEndShowList"></div>
       </div>
       <div class="source-list-container">
         <div class="source-list-header">
-          <span class="source-list-title hide"><span class="icon">🚫</span> Hide Actions</span>
-          <button class="add-btn" data-list="gameEndHide">+</button>
+          <span class="source-list-title hide"><i class="bx bx-hide"></i> Hide Actions</span>
+          <button class="add-btn" data-list="gameEndHide"><i class="bx bx-plus"></i></button>
         </div>
         <div class="source-list" id="gameEndHideList"></div>
       </div>
@@ -884,41 +245,41 @@
   <!-- Turn Change Section -->
   <div class="collapsible" id="turnChangeSection">
     <div class="collapsible-header">
-      <span class="collapsible-title"><span class="emoji">🔄</span> Turn Change</span>
-      <span class="collapsible-arrow">▼</span>
+      <span class="collapsible-title"><i class="bx bx-transfer"></i> Turn Change</span>
+      <span class="collapsible-arrow"><i class="bx bx-chevron-down"></i></span>
     </div>
     <div class="collapsible-content">
       <div class="sub-section">
-        <div class="sub-title">🎯 My Turn</div>
+        <div class="sub-title"><i class="bx bx-target-lock"></i> My Turn</div>
         <div class="source-list-container">
           <div class="source-list-header">
-            <span class="source-list-title show"><span class="icon">👁</span> Show</span>
-            <button class="add-btn" data-list="myTurnShow">+</button>
+            <span class="source-list-title show"><i class="bx bx-show"></i> Show</span>
+            <button class="add-btn" data-list="myTurnShow"><i class="bx bx-plus"></i></button>
           </div>
           <div class="source-list" id="myTurnShowList"></div>
         </div>
         <div class="source-list-container">
           <div class="source-list-header">
-            <span class="source-list-title hide"><span class="icon">🚫</span> Hide</span>
-            <button class="add-btn" data-list="myTurnHide">+</button>
+            <span class="source-list-title hide"><i class="bx bx-hide"></i> Hide</span>
+            <button class="add-btn" data-list="myTurnHide"><i class="bx bx-plus"></i></button>
           </div>
           <div class="source-list" id="myTurnHideList"></div>
         </div>
       </div>
       
       <div class="sub-section">
-        <div class="sub-title">👤 Opponent's Turn</div>
+        <div class="sub-title"><i class="bx bx-user"></i> Opponent's Turn</div>
         <div class="source-list-container">
           <div class="source-list-header">
-            <span class="source-list-title show"><span class="icon">👁</span> Show</span>
-            <button class="add-btn" data-list="opponentTurnShow">+</button>
+            <span class="source-list-title show"><i class="bx bx-show"></i> Show</span>
+            <button class="add-btn" data-list="opponentTurnShow"><i class="bx bx-plus"></i></button>
           </div>
           <div class="source-list" id="opponentTurnShowList"></div>
         </div>
         <div class="source-list-container">
           <div class="source-list-header">
-            <span class="source-list-title hide"><span class="icon">🚫</span> Hide</span>
-            <button class="add-btn" data-list="opponentTurnHide">+</button>
+            <span class="source-list-title hide"><i class="bx bx-hide"></i> Hide</span>
+            <button class="add-btn" data-list="opponentTurnHide"><i class="bx bx-plus"></i></button>
           </div>
           <div class="source-list" id="opponentTurnHideList"></div>
         </div>
@@ -930,7 +291,7 @@
     <button class="btn btn-primary" id="saveBtn">Save</button>
     <button class="btn btn-secondary" id="reconnectBtn">Reconnect</button>
   </div>
-  <div class="input-hint" style="text-align: center; margin-top: -8px; margin-bottom: 12px;">Auto-save enabled - changes are saved automatically</div>
+  <div class="input-hint hint-center">Auto-save enabled - changes are saved automatically</div>
   
   <div class="test-section">
     <div class="section-title">Test Filters</div>
@@ -945,21 +306,17 @@
       <button class="test-btn" data-segment="Miss">Miss</button>
     </div>
     <div class="test-grid">
-      <button class="test-btn wide" data-action="myTurn">🎯 My Turn</button>
-      <button class="test-btn wide" data-action="enemyTurn">👤 Opponent</button>
+      <button class="test-btn wide" data-action="myTurn"><i class="bx bx-target-lock"></i> My Turn</button>
+      <button class="test-btn wide" data-action="enemyTurn"><i class="bx bx-user"></i> Opponent</button>
     </div>
     <div class="test-grid">
-      <button class="test-btn wide" data-action="gameOn" style="background: linear-gradient(135deg, #10b981, #059669);">🎯 Game On</button>
-      <button class="test-btn wide" data-action="gameEnd" style="background: linear-gradient(135deg, #ef4444, #dc2626);">🏁 Game End</button>
-    </div>
-    <div class="test-grid">
+      <button class="test-btn wide test-btn-game-on" data-action="gameOn"><i class="bx bx-target-lock"></i> Game On</button>
+      <button class="test-btn wide test-btn-game-end" data-action="gameEnd"><i class="bx bx-trophy"></i> Game End</button>
     </div>
   </div>
   
   <a href="https://discord.gg/nMb3X9sWgv" target="_blank" class="discord-btn">
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-    </svg>
+    <i class="bx bxl-discord-alt discord-icon"></i>
     Join Discord
   </a>
   

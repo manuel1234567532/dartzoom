@@ -36,7 +36,7 @@ let showingPrediction = false;
 let settings = {
   obsUrl: 'ws://localhost:4455',
   obsPassword: '',
-  enabled: true,
+  enabled: false,
   usernames: [],  // Changed from username to usernames array
   filterScene: 'Board',
   filterSource: 'Boardcam',

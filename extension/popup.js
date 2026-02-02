@@ -25,6 +25,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveBtn = document.getElementById('saveBtn');
   const reconnectBtn = document.getElementById('reconnectBtn');
 
+  // CSP-safe dynamic style sheet for progress bar width
+  const progressSheet = new CSSStyleSheet();
+  document.adoptedStyleSheets = [...document.adoptedStyleSheets, progressSheet];
+
+  function setProgressWidth(percent) {
+    progressSheet.replaceSync(`#progressFill { width: ${percent}%; }`);
+  }
+
   // Usernames list
   let usernames = [];
 
@@ -78,11 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     chrome.runtime.sendMessage({ type: 'updateSettings', settings }, () => {
-      saveBtn.textContent = '✓ Saved';
-      saveBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      saveBtn.innerHTML = '<i class="bx bx-check"></i> Saved';
+      saveBtn.classList.add('btn-state-success');
       setTimeout(() => {
         saveBtn.textContent = 'Save';
-        saveBtn.style.background = '';
+        saveBtn.classList.remove('btn-state-success');
       }, 1000);
       
       checkSetup();
@@ -103,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     listEl.innerHTML = usernames.map((username, index) => `
       <div class="username-item" data-index="${index}">
         <input type="text" class="username-input" value="${username}" placeholder="Autodarts Username">
-        <button class="remove-btn" data-index="${index}" ${usernames.length <= 1 ? 'style="visibility:hidden"' : ''}>×</button>
+        <button class="remove-btn ${usernames.length <= 1 ? 'invisible' : ''}" data-index="${index}">×</button>
       </div>
     `).join('');
     
@@ -163,11 +171,10 @@ document.addEventListener('DOMContentLoaded', () => {
               <option value="scene" ${action.type === 'scene' ? 'selected' : ''}>Scene</option>
               <option value="filter" ${action.type === 'filter' ? 'selected' : ''}>Filter</option>
             </select>
-            <input type="text" class="action-input main-input" 
+            <input type="text" class="action-input main-input ${isFilter ? 'is-hidden' : ''}" 
                    value="${action.type === 'filter' ? '' : (action.name || '')}" 
                    placeholder="${action.type === 'scene' ? 'Scene name' : 'Source name'}"
-                   data-field="name"
-                   ${isFilter ? 'style="display:none"' : ''}>
+                   data-field="name">
             <input type="number" class="delay-input" value="${delayValue}" placeholder="0" min="0" data-field="delay" title="Delay in seconds">
             <span class="delay-suffix">sec</span>
             <button class="remove-btn" data-list="${listId}" data-index="${index}">×</button>
@@ -201,14 +208,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const newType = e.target.value;
         actionLists[listId][index].type = newType;
         
+        const mainInput = item.querySelector('.main-input');
+        
         // Toggle filter-type class
         if (newType === 'filter') {
           item.classList.add('filter-type');
-          item.querySelector('.main-input').style.display = 'none';
+          mainInput.classList.add('is-hidden');
         } else {
           item.classList.remove('filter-type');
-          item.querySelector('.main-input').style.display = '';
-          item.querySelector('.main-input').placeholder = newType === 'scene' ? 'Scene name' : 'Source name';
+          mainInput.classList.remove('is-hidden');
+          mainInput.placeholder = newType === 'scene' ? 'Scene name' : 'Source name';
         }
         autoSave();
       });
@@ -291,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (response.score) {
           scoreValue.textContent = response.score;
-          statsRow.style.display = 'flex';
+          statsRow.classList.add('show');
         }
         
         window._lastTurnState = response.isMyTurn;
@@ -330,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (result.defaultSound) defaultSoundInput.value = result.defaultSound;
       if (result.lastThrow) {
         lastThrowValue.textContent = result.lastThrow.name || '-';
-        statsRow.style.display = 'flex';
+        statsRow.classList.add('show');
       }
       
       // Load action lists (with migration for old format)
@@ -357,8 +366,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   function updateTurnUI(isMyTurn) {
-    turnIndicator.style.display = 'flex';
-    turnIndicator.className = `turn-indicator ${isMyTurn ? 'my-turn' : 'enemy-turn'}`;
+    turnIndicator.classList.add('show');
+    turnIndicator.classList.remove('is-hidden');
+    turnIndicator.className = `turn-indicator show ${isMyTurn ? 'my-turn' : 'enemy-turn'}`;
     turnText.textContent = isMyTurn ? 'Your turn' : 'Opponent\'s turn';
   }
   
@@ -370,11 +380,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupIndicator = document.getElementById('setupIndicator');
     
     if (validUsernames.length === 0 || !filterSource || !defaultFilter) {
-      setupIndicator.style.display = 'flex';
-      turnIndicator.style.display = 'none';
+      setupIndicator.classList.remove('is-hidden');
+      turnIndicator.classList.remove('show');
+      turnIndicator.classList.add('is-hidden');
       return false;
     } else {
-      setupIndicator.style.display = 'none';
+      setupIndicator.classList.add('is-hidden');
       if (window._lastTurnState !== undefined) {
         updateTurnUI(window._lastTurnState);
       }
@@ -450,59 +461,61 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (message.type === 'scoreUpdate') {
       scoreValue.textContent = message.score;
-      statsRow.style.display = 'flex';
+      statsRow.classList.add('show');
     }
     if (message.type === 'filterProgress') {
-      const progressFill = document.getElementById('progressFill');
-      const progressText = document.getElementById('progressText');
-      progressFill.style.width = `${(message.current / message.total) * 100}%`;
-      progressText.textContent = `${message.current} / ${message.total} - ${message.filterName}`;
+      const pct = (message.current / message.total) * 100;
+      setProgressWidth(pct);
+      document.getElementById('progressText').textContent = `${message.current} / ${message.total} - ${message.filterName}`;
     }
     if (message.type === 'filtersDone') {
       document.getElementById('progressModal').classList.remove('show');
       const createFiltersBtn = document.getElementById('createFiltersBtn');
       
+      createFiltersBtn.classList.remove('btn-state-success', 'btn-state-warning', 'btn-state-error');
+      
       if (message.success) {
-        createFiltersBtn.innerHTML = '<span class="btn-icon">✓</span> Filters Created!';
-        createFiltersBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        createFiltersBtn.innerHTML = '<i class="bx bx-check"></i> Filters Created!';
+        createFiltersBtn.classList.add('btn-state-success');
       } else if (message.successCount > 0) {
-        createFiltersBtn.innerHTML = `<span class="btn-icon">⚠</span> ${message.successCount}/${message.successCount + message.errorCount} Created`;
-        createFiltersBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        createFiltersBtn.innerHTML = `<i class="bx bx-error"></i> ${message.successCount}/${message.successCount + message.errorCount} Created`;
+        createFiltersBtn.classList.add('btn-state-warning');
       } else {
-        createFiltersBtn.innerHTML = '<span class="btn-icon">✗</span> Failed - Check Console';
-        createFiltersBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        createFiltersBtn.innerHTML = '<i class="bx bx-x"></i> Failed - Check Console';
+        createFiltersBtn.classList.add('btn-state-error');
       }
       
       setTimeout(() => {
-        createFiltersBtn.innerHTML = '<span class="btn-icon">⚡</span> Create All Cam Filters';
-        createFiltersBtn.style.background = '';
+        createFiltersBtn.innerHTML = '<i class="bx bx-bolt-circle"></i> Create All Cam Filters';
+        createFiltersBtn.classList.remove('btn-state-success', 'btn-state-warning', 'btn-state-error');
         createFiltersBtn.disabled = false;
       }, 3000);
     }
     if (message.type === 'filterUpdateProgress') {
-      const progressFill = document.getElementById('progressFill');
-      const progressText = document.getElementById('progressText');
-      progressFill.style.width = `${(message.current / message.total) * 100}%`;
-      progressText.textContent = `${message.current} / ${message.total} - ${message.filterName}`;
+      const pct = (message.current / message.total) * 100;
+      setProgressWidth(pct);
+      document.getElementById('progressText').textContent = `${message.current} / ${message.total} - ${message.filterName}`;
     }
     if (message.type === 'filterUpdateDone') {
       document.getElementById('progressModal').classList.remove('show');
       const updateFiltersBtn = document.getElementById('updateFiltersBtn');
       
+      updateFiltersBtn.classList.remove('btn-state-success', 'btn-state-warning', 'btn-state-error');
+      
       if (message.success) {
-        updateFiltersBtn.innerHTML = '<span class="btn-icon">✓</span> Filters Updated!';
-        updateFiltersBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        updateFiltersBtn.innerHTML = '<i class="bx bx-check"></i> Filters Updated!';
+        updateFiltersBtn.classList.add('btn-state-success');
       } else if (message.successCount > 0) {
-        updateFiltersBtn.innerHTML = `<span class="btn-icon">⚠</span> ${message.successCount}/${message.successCount + message.errorCount} Updated`;
-        updateFiltersBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        updateFiltersBtn.innerHTML = `<i class="bx bx-error"></i> ${message.successCount}/${message.successCount + message.errorCount} Updated`;
+        updateFiltersBtn.classList.add('btn-state-warning');
       } else {
-        updateFiltersBtn.innerHTML = '<span class="btn-icon">✗</span> Failed - Check Console';
-        updateFiltersBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        updateFiltersBtn.innerHTML = '<i class="bx bx-x"></i> Failed - Check Console';
+        updateFiltersBtn.classList.add('btn-state-error');
       }
       
       setTimeout(() => {
-        updateFiltersBtn.innerHTML = '<span class="btn-icon">🔄</span> Update Filter Settings';
-        updateFiltersBtn.style.background = '';
+        updateFiltersBtn.innerHTML = '<i class="bx bx-refresh"></i> Update Filter Settings';
+        updateFiltersBtn.classList.remove('btn-state-success', 'btn-state-warning', 'btn-state-error');
         updateFiltersBtn.disabled = false;
       }, 3000);
     }
@@ -536,10 +549,8 @@ document.addEventListener('DOMContentLoaded', () => {
     progressHeader.textContent = 'Creating Filters...';
     progressModal.classList.add('show');
     
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-    progressFill.style.width = '0%';
-    progressText.textContent = '0 / 64';
+    setProgressWidth(0);
+    document.getElementById('progressText').textContent = '0 / 64';
     
     createFiltersBtn.disabled = true;
     
@@ -572,10 +583,8 @@ document.addEventListener('DOMContentLoaded', () => {
     progressHeader.textContent = 'Updating Filters...';
     progressModal.classList.add('show');
     
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-    progressFill.style.width = '0%';
-    progressText.textContent = '0 / 64';
+    setProgressWidth(0);
+    document.getElementById('progressText').textContent = '0 / 64';
     
     updateFiltersBtn.disabled = true;
     

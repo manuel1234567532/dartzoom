@@ -22,6 +22,7 @@ mkdir -p "$DIST_DIR"
 echo -e "${GREEN}📁 Kopiere statische Dateien...${NC}"
 cp "$SRC_DIR/manifest.json" "$DIST_DIR/"
 cp "$SRC_DIR/popup.html" "$DIST_DIR/"
+cp "$SRC_DIR/popup.css" "$DIST_DIR/"
 cp "$SRC_DIR"/*.png "$DIST_DIR/" 2>/dev/null
 
 echo -e "${GREEN}🔐 Obfuskiere JavaScript...${NC}"
