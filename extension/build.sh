@@ -1,34 +1,37 @@
 #!/bin/bash
 
-# DartZoom Build Script
-# Erstellt obfuskierte Version im dist/ Ordner
+# DartControl Build Script
+# Creates obfuscated version in dist/ folder
 
-# Farben für Output
+# Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🎯 DartZoom Build Script${NC}"
-echo "========================="
+echo -e "${BLUE}🎮 DartControl Build Script${NC}"
+echo "=============================="
 
-# Pfade
+# Paths
 SRC_DIR="$(dirname "$0")"
 DIST_DIR="$SRC_DIR/dist"
 
-# dist Ordner erstellen/leeren
+# Create/clear dist folder
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
-echo -e "${GREEN}📁 Kopiere statische Dateien...${NC}"
+echo -e "${GREEN}📁 Copying static files...${NC}"
 cp "$SRC_DIR/manifest.json" "$DIST_DIR/"
 cp "$SRC_DIR/popup.html" "$DIST_DIR/"
 cp "$SRC_DIR/popup.css" "$DIST_DIR/"
+cp "$SRC_DIR/auth.html" "$DIST_DIR/"
+cp "$SRC_DIR/auth.css" "$DIST_DIR/"
 cp "$SRC_DIR"/*.png "$DIST_DIR/" 2>/dev/null
 
-echo -e "${GREEN}🔐 Obfuskiere JavaScript...${NC}"
+echo -e "${GREEN}🔐 Obfuscating JavaScript...${NC}"
 
-# JavaScript Dateien obfuskieren
-for file in background.js popup.js pageScript.js injector.js; do
+# Obfuscate JavaScript files
+for file in background.js popup.js auth.js pageScript.js injector.js; do
   if [ -f "$SRC_DIR/$file" ]; then
     echo "  → $file"
     npx javascript-obfuscator "$SRC_DIR/$file" \
@@ -47,17 +50,17 @@ for file in background.js popup.js pageScript.js injector.js; do
   fi
 done
 
-echo -e "${GREEN}📦 Erstelle ZIP...${NC}"
+echo -e "${GREEN}📦 Creating ZIP...${NC}"
 cd "$DIST_DIR"
-zip -r ../dartzoom-release.zip . -x "*.DS_Store"
+zip -r ../dartcontrol-release.zip . -x "*.DS_Store"
 cd ..
 
 echo ""
-echo -e "${GREEN}✅ Build fertig!${NC}"
+echo -e "${GREEN}✅ Build complete!${NC}"
 echo ""
-echo "Ordner-Struktur:"
-echo "  dartzoom/           ← Original (Entwicklung)"
-echo "  dartzoom/dist/      ← Obfuskiert (Release)"
-echo "  dartzoom-release.zip ← Fertige Extension"
+echo "Folder structure:"
+echo "  dartcontrol/              ← Original (Development)"
+echo "  dartcontrol/dist/         ← Obfuscated (Release)"
+echo "  dartcontrol-release.zip   ← Ready Extension"
 echo ""
-ls -lh "$SRC_DIR/dartzoom-release.zip" 2>/dev/null || ls -lh dartzoom-release.zip
+ls -lh "$SRC_DIR/dartcontrol-release.zip" 2>/dev/null || ls -lh dartcontrol-release.zip

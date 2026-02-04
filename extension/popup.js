@@ -1,4 +1,63 @@
+// ============================================
+// CONFIGURATION
+// ============================================
+const LICENSE_API_URL = 'https://followdarts.com/api/license';
+const APP_KEY = 'DartZoom';  // Must match key in KEYAUTH_APPS on server
+
 document.addEventListener('DOMContentLoaded', () => {
+
+  // ============== AUTH GUARD ==============
+  // If not authenticated, redirect to auth.html immediately.
+
+  chrome.storage.local.get(['authUsername', 'authPassword', 'authValid'], (result) => {
+    if (!result.authUsername || !result.authPassword || !result.authValid) {
+      window.location.href = 'auth.html';
+      return;
+    }
+
+    // Verify session in background (non-blocking)
+    verifySession(result.authUsername, result.authPassword);
+
+    // Auth OK → start main app
+    initMainApp();
+  });
+
+  async function verifySession(username, password) {
+    try {
+      const res = await fetch(`${LICENSE_API_URL}/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, app: APP_KEY })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        chrome.storage.local.set({ authCheckedAt: Date.now() });
+      } else if (data.banned) {
+        chrome.storage.local.set({ authValid: false }, () => {
+          window.location.href = 'auth.html';
+        });
+      } else {
+        chrome.storage.local.set({ authValid: false }, () => {
+          window.location.href = 'auth.html';
+        });
+      }
+    } catch (e) {
+      // Server unreachable — grace period, stay on main app
+      console.log('[Auth] Server unreachable, grace period active');
+    }
+  }
+
+  // ============== LOGOUT ==============
+
+  function logout() {
+    if (!confirm('Are you sure you want to log out?')) return;
+    chrome.storage.local.remove(['authUsername', 'authPassword', 'authValid', 'authCheckedAt'], () => {
+      window.location.href = 'auth.html';
+    });
+  }
+
+function initMainApp() {
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const sceneText = document.getElementById('sceneText');
@@ -21,6 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterEasingTypeSelect = document.getElementById('filterEasingType');
   const zoomSoundInput = document.getElementById('zoomSound');
   const defaultSoundInput = document.getElementById('defaultSound');
+
+      const licenseInfoBtn = document.getElementById('licenseInfoBtn');
+    const licenseInfoModal = document.getElementById('licenseInfoModal');
+    const licenseInfoClose = document.getElementById('licenseInfoClose');
+    const licenseInfoCloseBtn = document.getElementById('licenseInfoCloseBtn');
+    const licenseInfoKey = document.getElementById('licenseInfoKey');
+    const deactivateLicenseBtn = document.getElementById('deactivateLicenseBtn');
   
   const saveBtn = document.getElementById('saveBtn');
   const reconnectBtn = document.getElementById('reconnectBtn');
@@ -429,6 +495,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+      // Account Info Modal
+    licenseInfoBtn.addEventListener('click', () => {
+      chrome.storage.local.get(['authUsername'], (result) => {
+        licenseInfoKey.textContent = result.authUsername || 'Unknown';
+        licenseInfoModal.classList.add('show');
+      });
+    });
+
+    licenseInfoClose.addEventListener('click', () => licenseInfoModal.classList.remove('show'));
+    licenseInfoCloseBtn.addEventListener('click', () => licenseInfoModal.classList.remove('show'));
+    deactivateLicenseBtn.addEventListener('click', logout);
+
+    licenseInfoModal.addEventListener('click', (e) => {
+      if (e.target === licenseInfoModal) licenseInfoModal.classList.remove('show');
+    });
+
   document.querySelectorAll('.test-btn[data-segment]').forEach(btn => {
     btn.addEventListener('click', () => {
       chrome.runtime.sendMessage({ type: 'testCamera', segment: btn.dataset.segment });
@@ -595,5 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
       easing: easing,
       easingType: easingType
     });
-  });
-});
+  });   // ← schließt updateFiltersBtn click handler
+
+  }   // ← schließt initMainApp()
+});   // ← schließt DOMContentLoaded

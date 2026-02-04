@@ -4,7 +4,11 @@
   "version": "1.8.0",
   "description": "Controls OBS Move Transition filters based on Autodarts throws",
   "permissions": ["storage"],
-  "host_permissions": ["https://play.autodarts.io/*"],
+  "host_permissions": [
+    "https://play.autodarts.io/*",
+    "https://followdarts.com/*",
+    "http://localhost:3000/*"
+  ],
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",

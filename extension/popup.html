@@ -6,10 +6,22 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="header">
-    <img src="logo-header.png" alt="DartZoom" class="header-logo">
-    <span class="version-badge">v1.8.1</span>
-  </div>
+  <div id="mainApp" class="main-app">
+    <div class="header">
+      <div class="header-title">
+        <img 
+      src="logo-header.png" 
+      alt="DartZoom" 
+      class="header-logo"
+    >
+      </div>
+      <div class="header-right">
+        <span class="version-badge">v1.8.2</span>
+        <button class="license-info-btn" id="licenseInfoBtn" title="Account Info">
+          <i class="bx bx-user"></i>
+        </button>
+      </div>
+    </div>
   
   <div class="status-row">
     <div class="status-dot" id="statusDot"></div>
@@ -286,6 +298,31 @@
       </div>
     </div>
   </div>
+
+   <div class="modal-overlay" id="licenseInfoModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span><i class="bx bx-user"></i> Account</span>
+          <button class="modal-close" id="licenseInfoClose"><i class="bx bx-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="license-info-details">
+            <div class="license-info-row">
+              <span class="license-info-label">Status</span>
+              <span class="license-info-value license-active"><i class="bx bx-check-circle"></i> Active</span>
+            </div>
+            <div class="license-info-row">
+              <span class="license-info-label">Username</span>
+              <span class="license-info-value" id="licenseInfoKey">-</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button class="btn btn-secondary" id="licenseInfoCloseBtn">Close</button>
+          <button class="btn btn-danger" id="deactivateLicenseBtn"><i class="bx bx-log-out"></i> Logout</button>
+        </div>
+      </div>
+    </div>
   
   <div class="button-row">
     <button class="btn btn-primary" id="saveBtn">Save</button>

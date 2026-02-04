@@ -7,35 +7,102 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   padding: 16px;
 }
+
 .header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  position: relative;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 12px;
 }
-.header-logo { width: 320px; }
+
+.header-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.header-logo {
+  width: 190px;
+  height: auto;
+}
+.header-title .bx {
+  font-size: 28px;
+  color: #f59e0b;
+}
 .header h1 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
-  background: linear-gradient(135deg, #00d4ff, #0066ff);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .version-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
   font-size: 10px;
-  background: rgba(0, 212, 255, 0.2);
-  color: #00d4ff;
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
   padding: 2px 8px;
   border-radius: 10px;
-  border: 1px solid rgba(0, 212, 255, 0.3);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.license-info-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.license-info-btn:hover {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* License Info Modal */
+.license-info-details {
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  padding: 12px;
+}
+.license-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+.license-info-row + .license-info-row {
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.license-info-label {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+}
+.license-info-value {
+  font-size: 12px;
+  font-weight: 500;
+}
+.license-active {
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .status-row {
   display: flex;
@@ -573,7 +640,7 @@ body {
   transform: none;
 }
 
-/* Modal Styles */
+/* Modal */
 .modal-overlay {
   display: none;
   position: fixed;
@@ -581,41 +648,48 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   z-index: 1000;
   align-items: center;
   justify-content: center;
+  padding: 20px;
 }
-.modal-overlay.show {
-  display: flex;
-}
+.modal-overlay.show { display: flex; }
 .modal {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 12px;
   padding: 20px;
-  max-width: 320px;
-  width: 90%;
+  max-width: 400px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
 }
+.modal-large { max-width: 500px; }
 .modal-header {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 12px;
-  text-align: center;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.modal-header .bx {
-  font-size: 20px;
-  color: #fbbf24;
-}
-.modal-body {
-  font-size: 12px;
-  color: rgba(255,255,255,0.8);
+  justify-content: space-between;
+  font-size: 16px;
+  font-weight: 600;
   margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
+.modal-header .bx { color: #f59e0b; margin-right: 8px; }
+.modal-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.modal-close:hover { color: #fff; }
+.modal-body { margin-bottom: 16px; }
+.modal-buttons { display: flex; gap: 8px; }
+.modal-buttons .btn { flex: 1; }
 .modal-body p {
   margin-bottom: 8px;
 }
