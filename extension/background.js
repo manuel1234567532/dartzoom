@@ -1207,7 +1207,7 @@ function getAvailableFilterKinds() {
 
 // ============== STARTUP ==============
 
-const VERSION = '1.8.0';
+const VERSION = '1.8.3';
 
 chrome.storage.local.get([
   'obsUrl', 'obsPassword', 'enabled', 'usernames', 'username',  // Support both old and new

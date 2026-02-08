@@ -16,13 +16,28 @@
     >
       </div>
       <div class="header-right">
-        <span class="version-badge">v1.8.2</span>
+        <span class="version-badge">v1.8.3</span>
         <button class="license-info-btn" id="licenseInfoBtn" title="Account Info">
           <i class="bx bx-user"></i>
         </button>
       </div>
     </div>
   
+  <!-- ★ UPDATE BANNER -->
+  <div class="update-banner" id="updateBanner">
+    <div class="update-banner-content">
+      <div class="update-banner-icon"><i class="bx bx-revision"></i></div>
+      <div class="update-banner-text">
+        <strong>Update available!</strong>
+        <span id="updateText">A new version of DartZoom is ready</span>
+      </div>
+    </div>
+    <div class="update-banner-actions">
+      <button class="update-btn" id="updateBtn"><i class="bx bx-download"></i> Update</button>
+      <button class="update-dismiss" id="updateDismiss"><i class="bx bx-x"></i></button>
+    </div>
+  </div>
+
   <div class="status-row">
     <div class="status-dot" id="statusDot"></div>
     <span class="status-text" id="statusText">Not connected</span>
@@ -314,6 +329,14 @@
             <div class="license-info-row">
               <span class="license-info-label">Username</span>
               <span class="license-info-value" id="licenseInfoKey">-</span>
+            </div>
+            <div class="license-info-row">
+              <span class="license-info-label">Plan</span>
+              <span class="license-info-value" id="licenseInfoPlan">-</span>
+            </div>
+            <div class="license-info-row">
+              <span class="license-info-label">Expires</span>
+              <span class="license-info-value" id="licenseInfoExpiry">-</span>
             </div>
           </div>
         </div>

@@ -2,12 +2,11 @@
 // CONFIGURATION
 // ============================================
 const LICENSE_API_URL = 'https://followdarts.com/api/license';
-const APP_KEY = 'DartZoom';  // Must match key in KEYAUTH_APPS on server
+const APP_KEY = 'DartZoom';
 
 document.addEventListener('DOMContentLoaded', () => {
 
   // ============== AUTH GUARD ==============
-  // If not authenticated, redirect to auth.html immediately.
 
   chrome.storage.local.get(['authUsername', 'authPassword', 'authValid'], (result) => {
     if (!result.authUsername || !result.authPassword || !result.authValid) {
@@ -15,10 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Verify session in background (non-blocking)
     verifySession(result.authUsername, result.authPassword);
-
-    // Auth OK → start main app
     initMainApp();
   });
 
@@ -27,12 +23,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(`${LICENSE_API_URL}/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, app: APP_KEY })
+        body: JSON.stringify({ username, password, app: APP_KEY, version: chrome.runtime.getManifest().version })
       });
       const data = await res.json();
 
       if (data.success) {
         chrome.storage.local.set({ authCheckedAt: Date.now() });
+        // ★ Update-Info speichern
+        if (data.updateAvailable) {
+          chrome.storage.local.set({ updateAvailable: true, downloadUrl: data.downloadUrl || null });
+        } else if (data.latestVersion) {
+          chrome.storage.local.set({ latestVersion: data.latestVersion, downloadUrl: data.downloadUrl || null });
+          chrome.storage.local.remove('updateAvailable');
+        }
+        // ★ Subscription-Info speichern
+        if (data.subscription) chrome.storage.local.set({ subscription: data.subscription });
+        if (data.expiry) chrome.storage.local.set({ expiry: data.expiry });
+        if (data.timeleft) chrome.storage.local.set({ timeleft: data.timeleft });
       } else if (data.banned) {
         chrome.storage.local.set({ authValid: false }, () => {
           window.location.href = 'auth.html';
@@ -43,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
     } catch (e) {
-      // Server unreachable — grace period, stay on main app
       console.log('[Auth] Server unreachable, grace period active');
     }
   }
@@ -55,6 +61,64 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.remove(['authUsername', 'authPassword', 'authValid', 'authCheckedAt'], () => {
       window.location.href = 'auth.html';
     });
+  }
+
+  // ============== UPDATE CHECK ==============
+
+  async function checkForUpdate() {
+    const updateBanner = document.getElementById('updateBanner');
+    if (!updateBanner) return;
+
+    try {
+      const stored = await new Promise(r => chrome.storage.local.get(['updateAvailable', 'latestVersion', 'downloadUrl'], r));
+      
+      let hasUpdate = false;
+      
+      // Weg 1: Server hat invalidver erkannt (KeyAuth Version höher als Server)
+      if (stored.updateAvailable) {
+        hasUpdate = true;
+      }
+      
+      // Weg 2: Version aus KeyAuth ist höher als Extension
+      if (stored.latestVersion) {
+        const local = chrome.runtime.getManifest().version;
+        if (stored.latestVersion !== local && isNewerVersion(stored.latestVersion, local)) {
+          hasUpdate = true;
+        }
+      }
+      
+      if (hasUpdate) {
+        updateBanner.classList.add('show');
+        
+        // Show version number if available
+        const updateText = document.getElementById('updateText');
+        if (updateText && stored.latestVersion) {
+          updateText.textContent = `A new version v${stored.latestVersion} of DartZoom is ready`;
+        }
+        
+        const updateBtn = document.getElementById('updateBtn');
+        if (updateBtn) {
+          const url = stored.downloadUrl || 'https://discord.gg/nMb3X9sWgv';
+          updateBtn.addEventListener('click', () => {
+            window.open(url, '_blank');
+          });
+        }
+      }
+    } catch (e) {
+      console.log('[Update] Could not check for updates');
+    }
+  }
+
+  function isNewerVersion(remote, local) {
+    const r = remote.split('.').map(Number);
+    const l = local.split('.').map(Number);
+    for (let i = 0; i < Math.max(r.length, l.length); i++) {
+      const rv = r[i] || 0;
+      const lv = l[i] || 0;
+      if (rv > lv) return true;
+      if (rv < lv) return false;
+    }
+    return false;
   }
 
 function initMainApp() {
@@ -102,8 +166,7 @@ function initMainApp() {
   // Usernames list
   let usernames = [];
 
-  // Action lists data - now arrays of objects
-  // Format: { type: 'source'|'scene'|'filter', name: '', scene: '', source: '', filter: '' }
+  // Action lists data
   const actionLists = {
     gameOnShow: [],
     gameOnHide: [],
@@ -170,7 +233,6 @@ function initMainApp() {
     if (!listEl) return;
     
     if (usernames.length === 0) {
-      // Add at least one empty input
       usernames.push('');
     }
     
@@ -181,7 +243,6 @@ function initMainApp() {
       </div>
     `).join('');
     
-    // Add event listeners
     listEl.querySelectorAll('.username-input').forEach((input, index) => {
       input.addEventListener('input', (e) => {
         usernames[index] = e.target.value;
@@ -199,12 +260,10 @@ function initMainApp() {
     });
   }
 
-  // Add username button
   document.getElementById('addUsernameBtn').addEventListener('click', () => {
     usernames.push('');
     renderUsernameList();
     
-    // Focus the new input
     const listEl = document.getElementById('usernameList');
     const inputs = listEl.querySelectorAll('.username-input');
     if (inputs.length > 0) {
@@ -214,7 +273,6 @@ function initMainApp() {
 
   // ============== ACTION LISTS ==============
 
-  // Render an action list with type selector
   function renderActionList(listId) {
     const listEl = document.getElementById(listId + 'List');
     if (!listEl) return;
@@ -263,12 +321,10 @@ function initMainApp() {
       `;
     }).join('');
     
-    // Add event listeners
     listEl.querySelectorAll('.action-item').forEach(item => {
       const listId = item.dataset.list;
       const index = parseInt(item.dataset.index);
       
-      // Type selector change
       const typeSelect = item.querySelector('.action-type');
       typeSelect.addEventListener('change', (e) => {
         const newType = e.target.value;
@@ -276,7 +332,6 @@ function initMainApp() {
         
         const mainInput = item.querySelector('.main-input');
         
-        // Toggle filter-type class
         if (newType === 'filter') {
           item.classList.add('filter-type');
           mainInput.classList.add('is-hidden');
@@ -288,12 +343,10 @@ function initMainApp() {
         autoSave();
       });
       
-      // Input changes
       item.querySelectorAll('input').forEach(input => {
         input.addEventListener('input', (e) => {
           const field = e.target.dataset.field;
           let value = e.target.value;
-          // Convert delay to number
           if (field === 'delay') {
             value = parseInt(value) || 0;
           }
@@ -303,7 +356,6 @@ function initMainApp() {
       });
     });
     
-    // Remove buttons
     listEl.querySelectorAll('.remove-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const list = e.target.dataset.list;
@@ -315,12 +367,10 @@ function initMainApp() {
     });
   }
 
-  // Add new action item
   function addActionItem(listId) {
     actionLists[listId].push({ type: 'source', name: '' });
     renderActionList(listId);
     
-    // Focus the new input
     const listEl = document.getElementById(listId + 'List');
     const items = listEl.querySelectorAll('.action-item');
     if (items.length > 0) {
@@ -330,7 +380,6 @@ function initMainApp() {
     }
   }
 
-  // Setup add buttons
   document.querySelectorAll('.add-btn[data-list]').forEach(btn => {
     btn.addEventListener('click', () => {
       const listId = btn.dataset.list;
@@ -338,7 +387,6 @@ function initMainApp() {
     });
   });
 
-  // Setup collapsible sections
   document.querySelectorAll('.collapsible-header').forEach(header => {
     header.addEventListener('click', () => {
       const collapsible = header.parentElement;
@@ -346,7 +394,6 @@ function initMainApp() {
     });
   });
 
-  // Migrate old string format to new object format
   function migrateOldFormat(list) {
     if (!list || !Array.isArray(list)) return [];
     return list.map(item => {
@@ -360,7 +407,6 @@ function initMainApp() {
   function loadStatus() {
     chrome.runtime.sendMessage({ type: 'getStatus' }, (response) => {
       if (response) {
-        // Don't set obsUrl here - let storage.local.get handle it
         enabledToggle.checked = response.enabled !== false;
         updateStatusUI(response.connected, response.currentScene);
         
@@ -383,7 +429,6 @@ function initMainApp() {
       obsUrlInput.value = result.obsUrl || 'ws://localhost:4455';
       if (result.obsPassword) obsPasswordInput.value = result.obsPassword;
       
-      // Handle migration from old single username to usernames array
       if (result.usernames && Array.isArray(result.usernames)) {
         usernames = result.usernames;
       } else if (result.username) {
@@ -408,7 +453,6 @@ function initMainApp() {
         statsRow.classList.add('show');
       }
       
-      // Load action lists (with migration for old format)
       if (result.gameOnShow) actionLists.gameOnShow = migrateOldFormat(result.gameOnShow);
       if (result.gameOnHide) actionLists.gameOnHide = migrateOldFormat(result.gameOnHide);
       if (result.gameEndShow) actionLists.gameEndShow = migrateOldFormat(result.gameEndShow);
@@ -418,7 +462,6 @@ function initMainApp() {
       if (result.opponentTurnShow) actionLists.opponentTurnShow = migrateOldFormat(result.opponentTurnShow);
       if (result.opponentTurnHide) actionLists.opponentTurnHide = migrateOldFormat(result.opponentTurnHide);
       
-      // Render all action lists
       Object.keys(actionLists).forEach(listId => renderActionList(listId));
       
       checkSetup();
@@ -459,7 +502,6 @@ function initMainApp() {
     }
   }
 
-  // Get current values from action lists (filter incomplete entries)
   function getActionListValues() {
     const values = {};
     Object.keys(actionLists).forEach(listId => {
@@ -474,6 +516,17 @@ function initMainApp() {
   }
 
   loadStatus();
+
+  // ★ Update-Check beim Start
+  checkForUpdate();
+
+  // Dismiss update banner
+  const updateDismiss = document.getElementById('updateDismiss');
+  if (updateDismiss) {
+    updateDismiss.addEventListener('click', () => {
+      document.getElementById('updateBanner').classList.remove('show');
+    });
+  }
 
   // Auto-save on input changes
   const textInputs = [obsUrlInput, obsPasswordInput, filterSceneInput, filterSourceInput, defaultFilterInput, throwDurationInput, checkoutScoreInput, filterDurationInput, zoomSoundInput, defaultSoundInput];
@@ -497,8 +550,41 @@ function initMainApp() {
 
       // Account Info Modal
     licenseInfoBtn.addEventListener('click', () => {
-      chrome.storage.local.get(['authUsername'], (result) => {
+      chrome.storage.local.get(['authUsername', 'subscription', 'expiry', 'timeleft'], (result) => {
         licenseInfoKey.textContent = result.authUsername || 'Unknown';
+        
+        // Plan
+        const planEl = document.getElementById('licenseInfoPlan');
+        if (planEl) {
+          planEl.textContent = result.subscription || 'Unknown';
+        }
+        
+        // Expiry
+        const expiryEl = document.getElementById('licenseInfoExpiry');
+        if (expiryEl && result.expiry) {
+          const expiryDate = new Date(result.expiry * 1000);
+          const now = Date.now();
+          const timeleft = result.timeleft || Math.floor((expiryDate.getTime() - now) / 1000);
+          
+          if (timeleft > 315360000) {
+            // Mehr als 10 Jahre = Lifetime
+            expiryEl.innerHTML = '<span class="license-lifetime"><i class="bx bx-infinite"></i> Lifetime</span>';
+          } else if (timeleft > 86400) {
+            const days = Math.floor(timeleft / 86400);
+            expiryEl.textContent = `${days} day${days !== 1 ? 's' : ''} remaining`;
+          } else if (timeleft > 3600) {
+            const hours = Math.floor(timeleft / 3600);
+            expiryEl.textContent = `${hours} hour${hours !== 1 ? 's' : ''} remaining`;
+          } else if (timeleft > 0) {
+            const mins = Math.floor(timeleft / 60);
+            expiryEl.textContent = `${mins} minute${mins !== 1 ? 's' : ''} remaining`;
+          } else {
+            expiryEl.innerHTML = '<span class="license-expired">Expired</span>';
+          }
+        } else if (expiryEl) {
+          expiryEl.textContent = '-';
+        }
+        
         licenseInfoModal.classList.add('show');
       });
     });
@@ -677,7 +763,7 @@ function initMainApp() {
       easing: easing,
       easingType: easingType
     });
-  });   // ← schließt updateFiltersBtn click handler
+  });
 
   }   // ← schließt initMainApp()
 });   // ← schließt DOMContentLoaded

@@ -1,19 +1,15 @@
 // ============================================
 // AUTH MODULE — Reusable across extensions
 // ============================================
-// Change the config below to match your extension.
-// Then include auth.html/auth.css/auth.js in your project.
-// On success the user is redirected to AUTH_CONFIG.redirectUrl.
-// ============================================
 
 const AUTH_CONFIG = {
-  apiUrl: 'https://followdarts.com/api/license',  // Your license server
-  appKey: 'dartzoom',                         // Must match key in KEYAUTH_APPS on server
-  redirectUrl: 'popup.html',                     // Page after successful login
-  appName: 'Welcome',                        // Shown as title
-  appSubtitle: 'Log in to your account', // Shown below title
-  logoSrc: 'logo_labs.png',                           // Logo image path
-  discordUrl: 'https://discord.gg/PTuCpkJ8fy',  // Support link (set '' to hide)
+  apiUrl: 'https://followdarts.com/api/license',
+  appKey: 'dartzoom',
+  redirectUrl: 'popup.html',
+  appName: 'Welcome',
+  appSubtitle: 'Log in to your account',
+  logoSrc: 'logo_labs.png',
+  discordUrl: 'https://discord.gg/PTuCpkJ8fy',
   minUsernameLength: 3,
   minPasswordLength: 4,
 };
@@ -75,13 +71,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function onAuthSuccess(username, password) {
-    chrome.storage.local.set({
+  function onAuthSuccess(username, password, data) {
+    const storageData = {
       authUsername: username,
       authPassword: password,
       authValid: true,
       authCheckedAt: Date.now()
-    }, () => {
+    };
+    if (data.updateAvailable) storageData.updateAvailable = true;
+    if (data.latestVersion) storageData.latestVersion = data.latestVersion;
+    if (data.downloadUrl) storageData.downloadUrl = data.downloadUrl;
+    if (data.subscription) storageData.subscription = data.subscription;
+    if (data.expiry) storageData.expiry = data.expiry;
+    if (data.timeleft) storageData.timeleft = data.timeleft;
+    chrome.storage.local.set(storageData, () => {
       window.location.href = AUTH_CONFIG.redirectUrl;
     });
   }
@@ -116,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loginTab) loginTab.classList.add('active');
     currentMode = 'login';
 
-    chrome.storage.local.remove(['authUsername', 'authPassword', 'authValid', 'authCheckedAt']);
+    chrome.storage.local.remove(['authUsername', 'authPassword', 'authValid', 'authCheckedAt', 'updateAvailable']);
     if (loginUsername) loginUsername.value = '';
     if (loginPassword) loginPassword.value = '';
     showError('');
@@ -129,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (result.authUsername && result.authPassword && result.authValid) {
         verifySession(result.authUsername, result.authPassword);
       }
-      // else: already on auth screen, do nothing
     });
   }
 
@@ -141,13 +143,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(`${AUTH_CONFIG.apiUrl}/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, app: AUTH_CONFIG.appKey })
+        body: JSON.stringify({ username, password, app: AUTH_CONFIG.appKey, version: chrome.runtime.getManifest().version })
       });
       const data = await res.json();
       if (checking) checking.classList.remove('show');
 
       if (data.success) {
         chrome.storage.local.set({ authCheckedAt: Date.now() });
+        // ★ Update-Info speichern
+        if (data.updateAvailable) {
+          chrome.storage.local.set({ updateAvailable: true, downloadUrl: data.downloadUrl || null });
+        } else if (data.latestVersion) {
+          chrome.storage.local.set({ latestVersion: data.latestVersion, downloadUrl: data.downloadUrl || null });
+          chrome.storage.local.remove('updateAvailable');
+        }
+        // ★ Subscription-Info speichern
+        if (data.subscription) chrome.storage.local.set({ subscription: data.subscription });
+        if (data.expiry) chrome.storage.local.set({ expiry: data.expiry });
+        if (data.timeleft) chrome.storage.local.set({ timeleft: data.timeleft });
         window.location.href = AUTH_CONFIG.redirectUrl;
       } else if (data.banned) {
         chrome.storage.local.set({ authValid: false }, () => showBanned(username));
@@ -156,7 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showError(data.message || 'Session expired. Please log in again.');
       }
     } catch (e) {
-      // Server unreachable — grace period, let them through
       if (checking) checking.classList.remove('show');
       window.location.href = AUTH_CONFIG.redirectUrl;
     }
@@ -180,12 +192,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(`${AUTH_CONFIG.apiUrl}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, app: AUTH_CONFIG.appKey })
+        body: JSON.stringify({ username, password, app: AUTH_CONFIG.appKey, version: chrome.runtime.getManifest().version })
       });
       const data = await res.json();
 
       if (data.success) {
-        onAuthSuccess(username, password);
+        onAuthSuccess(username, password, data);
       } else if (data.banned) {
         setLoading(false);
         showBanned(username);
@@ -226,12 +238,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch(`${AUTH_CONFIG.apiUrl}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, licenseKey, app: AUTH_CONFIG.appKey })
+        body: JSON.stringify({ username, password, licenseKey, app: AUTH_CONFIG.appKey, version: chrome.runtime.getManifest().version })
       });
       const data = await res.json();
 
       if (data.success) {
-        onAuthSuccess(username, password);
+        onAuthSuccess(username, password, data);
       } else {
         showError(data.message || 'Registration failed');
         setLoading(false);

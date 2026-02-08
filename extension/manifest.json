@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "DartZoom - Automated Camera Zoom",
-  "version": "1.8.0",
-  "description": "Controls OBS Move Transition filters based on Autodarts throws",
+  "version": "1.8.3",
+  "description": "Controls OBS Move Transition filters based on throws",
   "permissions": ["storage"],
   "host_permissions": [
     "https://play.autodarts.io/*",
