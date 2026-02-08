@@ -16,7 +16,7 @@
     >
       </div>
       <div class="header-right">
-        <span class="version-badge">v1.8.3</span>
+        <span class="version-badge">v1.8.4</span>
         <button class="license-info-btn" id="licenseInfoBtn" title="Account Info">
           <i class="bx bx-user"></i>
         </button>
@@ -168,6 +168,17 @@
       <i class="bx bx-refresh"></i> Update Filter Settings
     </button>
     <div class="input-hint hint-after-update">Updates duration and easing on all existing filters (keeps positions)</div>
+    
+    <div class="backup-row">
+      <button class="btn btn-backup" id="exportFiltersBtn">
+        <i class="bx bx-download"></i> Export Settings
+      </button>
+      <button class="btn btn-backup" id="importFiltersBtn">
+        <i class="bx bx-upload"></i> Import Settings
+      </button>
+    </div>
+    <div class="input-hint hint-after-backup">Backup & restore all filter positions and settings (JSON file)</div>
+    <input type="file" id="importFileInput" accept=".json" class="is-hidden">
   </div>
   
   <!-- Confirmation Modal -->

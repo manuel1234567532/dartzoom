@@ -687,6 +687,109 @@ function initMainApp() {
         updateFiltersBtn.disabled = false;
       }, 3000);
     }
+
+    if (message.type === 'exportProgress') {
+      const pct = (message.current / message.total) * 100;
+      setProgressWidth(pct);
+      document.getElementById('progressText').textContent = `${message.current} / ${message.total} - ${message.filterName}`;
+    }
+    if (message.type === 'exportFilterSettingsDone') {
+      document.getElementById('progressModal').classList.remove('show');
+      const exportBtn = document.getElementById('exportFiltersBtn');
+      
+      exportBtn.classList.remove('btn-state-success', 'btn-state-error');
+      
+      if (message.success) {
+        // Retrieve the full data from chrome.storage.local (too large for message passing)
+        chrome.storage.local.get('_exportedFilterData', (result) => {
+          const data = result._exportedFilterData;
+          if (data) {
+            // Trigger JSON download
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const filename = `dartzoom-filters-${data.sourceName}-${new Date().toISOString().slice(0,10)}.json`;
+            
+            // Use chrome.downloads API if available, fallback to window.open
+            if (chrome.downloads && chrome.downloads.download) {
+              chrome.downloads.download({ url: url, filename: filename, saveAs: true }, () => {
+                URL.revokeObjectURL(url);
+              });
+            } else {
+              // Fallback: open in new tab (user can save with Ctrl+S)
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              a.target = '_blank';
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }, 100);
+            }
+            
+            // Clean up storage
+            chrome.storage.local.remove('_exportedFilterData');
+            
+            exportBtn.innerHTML = `<i class="bx bx-check"></i> Exported ${data.filterCount} Filters!`;
+            exportBtn.classList.add('btn-state-success');
+          } else {
+            exportBtn.innerHTML = '<i class="bx bx-x"></i> Export Failed (no data)';
+            exportBtn.classList.add('btn-state-error');
+          }
+          
+          setTimeout(() => {
+            exportBtn.innerHTML = '<i class="bx bx-download"></i> Export Settings';
+            exportBtn.classList.remove('btn-state-success', 'btn-state-error');
+            exportBtn.disabled = false;
+          }, 3000);
+        });
+        return; // Early return — the timeout is handled inside the callback
+      } else {
+        exportBtn.innerHTML = '<i class="bx bx-x"></i> Export Failed';
+        exportBtn.classList.add('btn-state-error');
+      }
+      
+      setTimeout(() => {
+        exportBtn.innerHTML = '<i class="bx bx-download"></i> Export Settings';
+        exportBtn.classList.remove('btn-state-success', 'btn-state-error');
+        exportBtn.disabled = false;
+      }, 3000);
+    }
+
+    // === IMPORT PROGRESS ===
+    if (message.type === 'importProgress') {
+      const pct = (message.current / message.total) * 100;
+      setProgressWidth(pct);
+      document.getElementById('progressText').textContent = `${message.current} / ${message.total} - ${message.filterName}`;
+    }
+    if (message.type === 'importFilterSettingsDone') {
+      document.getElementById('progressModal').classList.remove('show');
+      const importBtn = document.getElementById('importFiltersBtn');
+      
+      importBtn.classList.remove('btn-state-success', 'btn-state-warning', 'btn-state-error');
+      
+      if (message.success) {
+        let label = `<i class="bx bx-check"></i> Restored ${message.successCount} Filters!`;
+        if (message.skippedCount > 0) {
+          label = `<i class="bx bx-check"></i> ${message.successCount} Restored, ${message.skippedCount} Skipped`;
+        }
+        importBtn.innerHTML = label;
+        importBtn.classList.add(message.skippedCount > 0 ? 'btn-state-warning' : 'btn-state-success');
+      } else if (message.successCount > 0) {
+        importBtn.innerHTML = `<i class="bx bx-error"></i> ${message.successCount} OK, ${message.errorCount} Failed`;
+        importBtn.classList.add('btn-state-warning');
+      } else {
+        importBtn.innerHTML = '<i class="bx bx-x"></i> Import Failed';
+        importBtn.classList.add('btn-state-error');
+      }
+      
+      setTimeout(() => {
+        importBtn.innerHTML = '<i class="bx bx-upload"></i> Import Settings';
+        importBtn.classList.remove('btn-state-success', 'btn-state-warning', 'btn-state-error');
+        importBtn.disabled = false;
+      }, 4000);
+    }
   });
 
   // Create Filters Button Logic
@@ -763,6 +866,92 @@ function initMainApp() {
       easing: easing,
       easingType: easingType
     });
+  });
+
+  // ============== FILTER BACKUP / RESTORE ==============
+
+  const exportFiltersBtn = document.getElementById('exportFiltersBtn');
+  const importFiltersBtn = document.getElementById('importFiltersBtn');
+  const importFileInput = document.getElementById('importFileInput');
+
+  exportFiltersBtn.addEventListener('click', () => {
+    const source = filterSourceInput.value.trim();
+    if (!source) {
+      alert('Please enter a Source name first!');
+      return;
+    }
+
+    progressHeader.textContent = 'Exporting Filter Settings...';
+    progressModal.classList.add('show');
+    setProgressWidth(0);
+    document.getElementById('progressText').textContent = '0 / 64';
+    exportFiltersBtn.disabled = true;
+
+    chrome.runtime.sendMessage({
+      type: 'exportFilterSettings',
+      sourceName: source
+    });
+  });
+
+  importFiltersBtn.addEventListener('click', () => {
+    const source = filterSourceInput.value.trim();
+    if (!source) {
+      alert('Please enter a Source name first!');
+      return;
+    }
+    // Trigger file picker
+    importFileInput.value = '';
+    importFileInput.click();
+  });
+
+  importFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const source = filterSourceInput.value.trim();
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const filterData = JSON.parse(event.target.result);
+
+        // Validate JSON structure
+        if (!filterData.filters || !Array.isArray(filterData.filters)) {
+          alert('Invalid backup file: no filters found.');
+          return;
+        }
+
+        const count = filterData.filters.length;
+        const origSource = filterData.sourceName || '?';
+        const date = filterData.exportDate ? new Date(filterData.exportDate).toLocaleString() : '?';
+
+        if (!confirm(
+          `Import ${count} filter settings?\n\n` +
+          `From: ${origSource}\n` +
+          `Date: ${date}\n` +
+          `To: ${source}\n\n` +
+          `This will overwrite all current filter positions on "${source}".\n` +
+          `Filters that don't exist on the source will be skipped.`
+        )) {
+          return;
+        }
+
+        progressHeader.textContent = 'Importing Filter Settings...';
+        progressModal.classList.add('show');
+        setProgressWidth(0);
+        document.getElementById('progressText').textContent = `0 / ${count}`;
+        importFiltersBtn.disabled = true;
+
+        chrome.runtime.sendMessage({
+          type: 'importFilterSettings',
+          sourceName: source,
+          filterData: filterData
+        });
+      } catch (err) {
+        alert('Invalid JSON file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
   });
 
   }   // ← schließt initMainApp()

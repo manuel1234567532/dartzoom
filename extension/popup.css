@@ -915,6 +915,50 @@ body {
   color: #ef4444;
 }
 
+.backup-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
 
+.btn-backup {
+  flex: 1;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
 
+.btn-backup:hover {
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  transform: translateY(-1px);
+}
 
+.btn-backup:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-backup .bx {
+  font-size: 14px;
+}
+
+.hint-after-backup {
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+/* Utility: hide elements */
+.is-hidden {
+  display: none !important;
+}
