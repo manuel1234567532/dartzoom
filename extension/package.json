@@ -1,7 +1,8 @@
 {
   "name": "dartzoom",
-  "version": "1.8.4",
-  "description": "DartZoom Chrome Extension for Autodarts.io",
+  "version": "1.8.8",
+  "description": "DartZoom Chrome Extension for Autodarts.com",
+  "license": "GPL-3.0-only",
   "scripts": {
     "build": "bash build.sh",
     "build:win": "powershell -ExecutionPolicy Bypass -File build.ps1"

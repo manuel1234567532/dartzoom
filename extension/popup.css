@@ -47,12 +47,12 @@ body {
   gap: 8px;
 }
 .version-badge {
-  font-size: 10px;
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+    font-size: 10px;
+    background: #16c0fd6b;
+    color: #16C0FD;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid #16c0fd5e;
 }
 
 .license-info-btn {
@@ -70,9 +70,9 @@ body {
   transition: all 0.2s;
 }
 .license-info-btn:hover {
-  color: #f59e0b;
-  border-color: rgba(245, 158, 11, 0.3);
-  background: rgba(245, 158, 11, 0.1);
+  color: #00d4ff;
+  border-color: rgba(0, 212, 255, 0.3);
+  background: rgba(0, 212, 255, 0.1);
 }
 
 /* License Info Modal */
@@ -259,6 +259,7 @@ body {
   position: relative;
   top: -1px;
 }
+
 .btn-primary {
   background: linear-gradient(135deg, #00d4ff, #0099cc);
   color: #000;
@@ -273,6 +274,36 @@ body {
   border: 1px solid rgba(255,255,255,0.2);
 }
 .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+
+/* Modern Save & Reconnect Buttons */
+.btn-save {
+  background: linear-gradient(135deg, #00d4ff, #0066ff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-save:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+}
+.btn-save .bx { font-size: 16px; }
+
+.btn-reconnect {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-reconnect:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+.btn-reconnect .bx { font-size: 16px; }
+
 .test-section {
   background: rgba(255,255,255,0.03);
   border-radius: 8px;
@@ -676,7 +707,7 @@ body {
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
-.modal-header .bx { color: #f59e0b; margin-right: 8px; }
+.modal-header .bx { color: #16c0fd6b; margin-right: 8px; }
 .modal-close {
   background: none;
   border: none;
@@ -787,11 +818,23 @@ body {
 /* Test button: Game On (green) */
 .test-btn-game-on {
   background: linear-gradient(135deg, #10b981, #059669);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.test-btn-game-on:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  border-color: rgba(16, 185, 129, 0.5);
 }
 
 /* Test button: Game End (red) */
 .test-btn-game-end {
   background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.test-btn-game-end:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.5);
 }
 
 /* Discord icon size */
@@ -799,107 +842,6 @@ body {
   font-size: 20px;
 }
 
-.update-banner {
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(16, 185, 129, 0.08));
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  animation: updateBannerSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-.update-banner.show {
-  display: flex;
-}
-@keyframes updateBannerSlide {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.update-banner-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-.update-banner-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(34, 197, 94, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.update-banner-icon .bx {
-  font-size: 18px;
-  color: #22c55e;
-}
-.update-banner-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.update-banner-text strong {
-  font-size: 12px;
-  color: #22c55e;
-  font-weight: 600;
-}
-.update-banner-text span {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-}
-.update-banner-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.update-btn {
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.update-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-}
-.update-btn .bx {
-  font-size: 14px;
-}
-.update-dismiss {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: none;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.update-dismiss:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.8);
-}
 
 /* License Expiry Styles */
 .license-lifetime {
@@ -961,4 +903,261 @@ body {
 /* Utility: hide elements */
 .is-hidden {
   display: none !important;
+}
+
+.checkout-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 4px;
+}
+.checkout-score-group {
+  width: 70px;
+  flex-shrink: 0;
+}
+.checkout-score-group input {
+  width: 100%;
+}
+.checkout-darts-group {
+  flex: 1;
+}
+.checkout-add-btn {
+  margin-bottom: 1px;
+  height: 34px;
+  width: 34px;
+  flex-shrink: 0;
+}
+
+/* Quick Add Buttons */
+.checkout-quick-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+  align-items: center;
+}
+.quick-add-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  margin-right: 2px;
+}
+.quick-add-btn {
+  padding: 4px 8px;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 6px;
+  color: #00d4ff;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.quick-add-btn:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.5);
+}
+.quick-add-btn.already-added {
+  opacity: 0.3;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Routes List */
+.checkout-routes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.checkout-route-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.checkout-route-item:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.12);
+}
+.checkout-route-score {
+  font-size: 16px;
+  font-weight: 700;
+  color: #00d4ff;
+  min-width: 36px;
+  text-align: center;
+}
+.checkout-route-arrow {
+  color: rgba(255,255,255,0.25);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.checkout-route-darts {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.checkout-dart-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.checkout-dart-tag.double {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.checkout-dart-tag.triple {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.checkout-dart-tag.single {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255,255,255,0.7);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.checkout-dart-tag.bull {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+.checkout-route-item .remove-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.checkout-route-item:hover .remove-btn {
+  opacity: 1;
+}
+
+/* Empty State */
+.checkout-routes-empty {
+  text-align: center;
+  padding: 16px;
+  color: rgba(255,255,255,0.3);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.checkout-routes-empty .bx {
+  font-size: 14px;
+}
+.checkout-routes-empty.is-hidden {
+  display: none;
+}
+
+.settings-backup-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.settings-backup-btn:hover {
+  color: #00d4ff;
+  border-color: rgba(0, 212, 255, 0.3);
+  background: rgba(0, 212, 255, 0.1);
+}
+
+/* Settings Backup Modal */
+.settings-backup-desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.settings-backup-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.settings-backup-actions .btn {
+  flex: 1;
+  padding: 10px 12px;
+}
+.settings-backup-export {
+  background: linear-gradient(135deg, #00d4ff, #0066ff) !important;
+}
+.settings-backup-export:hover {
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3) !important;
+}
+.settings-backup-import {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important;
+}
+.settings-backup-import:hover {
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3) !important;
+}
+.settings-backup-hint {
+  font-size: 10px;
+  color: rgba(255,255,255,0.3);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+}
+.settings-backup-hint .bx {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+
+/* Made by footer */
+.made-by-footer {
+  text-align: center;
+  padding: 10px 0 14px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+}
+.made-by-link {
+  color: rgba(255, 255, 255, 0.4);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.made-by-link:hover {
+  color: #00d4ff;
+}
+
+/* GitHub Releases Button */
+.github-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.github-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.github-icon {
+  font-size: 18px;
 }

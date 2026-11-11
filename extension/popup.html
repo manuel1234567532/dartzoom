@@ -16,27 +16,14 @@
     >
       </div>
       <div class="header-right">
-        <span class="version-badge">v1.8.4</span>
-        <button class="license-info-btn" id="licenseInfoBtn" title="Account Info">
-          <i class="bx bx-user"></i>
-        </button>
+        <span class="version-badge">v1.8.8</span>
+        <button class="settings-backup-btn" id="settingsBackupBtn" title="Backup & Restore Settings">
+  <i class="bx bx-cog"></i>
+</button>
+
       </div>
     </div>
   
-  <!-- ★ UPDATE BANNER -->
-  <div class="update-banner" id="updateBanner">
-    <div class="update-banner-content">
-      <div class="update-banner-icon"><i class="bx bx-revision"></i></div>
-      <div class="update-banner-text">
-        <strong>Update available!</strong>
-        <span id="updateText">A new version of DartZoom is ready</span>
-      </div>
-    </div>
-    <div class="update-banner-actions">
-      <button class="update-btn" id="updateBtn"><i class="bx bx-download"></i> Update</button>
-      <button class="update-dismiss" id="updateDismiss"><i class="bx bx-x"></i></button>
-    </div>
-  </div>
 
   <div class="status-row">
     <div class="status-dot" id="statusDot"></div>
@@ -210,6 +197,45 @@
       </div>
     </div>
   </div>
+
+   <div class="collapsible" id="checkoutRoutesSection">
+    <div class="collapsible-header">
+      <span class="collapsible-title"><i class="bx bx-route"></i> Custom Checkout Routes</span>
+      <span class="collapsible-arrow"><i class="bx bx-chevron-down"></i></span>
+    </div>
+    <div class="collapsible-content">
+      <div class="input-hint hint-section-intro">Define your own checkout paths. These override Autodarts' suggestions.</div>
+      
+      <div class="checkout-add-row">
+        <div class="input-group checkout-score-group">
+          <label>Score</label>
+          <input type="number" id="checkoutRouteScore" min="2" max="170" placeholder="40">
+        </div>
+        <div class="input-group checkout-darts-group">
+          <label>Darts (comma-separated)</label>
+          <input type="text" id="checkoutRouteDarts" placeholder="e.g. S20, D10">
+        </div>
+        <button class="add-btn checkout-add-btn" id="addCheckoutRouteBtn"><i class="bx bx-plus"></i></button>
+      </div>
+      <div class="input-hint hint-row-spacing">Use: S1-S20, D1-D20, T1-T20, Bull, DBull. Separate with comma.</div>
+      
+      <div class="checkout-quick-add">
+        <span class="quick-add-label">Quick Add:</span>
+        <button class="quick-add-btn" data-score="40" data-darts="S20,D10">40: S20→D10</button>
+        <button class="quick-add-btn" data-score="36" data-darts="S20,D8">36: S20→D8</button>
+        <button class="quick-add-btn" data-score="32" data-darts="S16,D8">32: S16→D8</button>
+        <button class="quick-add-btn" data-score="24" data-darts="S8,D8">24: S8→D8</button>
+        <button class="quick-add-btn" data-score="170" data-darts="T20,T20,Bull">170: T20→T20→Bull</button>
+        <button class="quick-add-btn" data-score="130" data-darts="T20,S20,Bull">130: T20→S20→Bull</button>
+      </div>
+      
+      <div class="checkout-routes-list" id="checkoutRoutesList"></div>
+      
+      <div class="checkout-routes-empty" id="checkoutRoutesEmpty">
+        <i class="bx bx-info-circle"></i> No custom routes defined. Autodarts checkout guide will be used.
+      </div>
+    </div>
+  </div>
   
   <!-- Sound Settings Section -->
   <div class="collapsible" id="soundSection">
@@ -325,43 +351,38 @@
     </div>
   </div>
 
-   <div class="modal-overlay" id="licenseInfoModal">
-      <div class="modal">
-        <div class="modal-header">
-          <span><i class="bx bx-user"></i> Account</span>
-          <button class="modal-close" id="licenseInfoClose"><i class="bx bx-x"></i></button>
-        </div>
-        <div class="modal-body">
-          <div class="license-info-details">
-            <div class="license-info-row">
-              <span class="license-info-label">Status</span>
-              <span class="license-info-value license-active"><i class="bx bx-check-circle"></i> Active</span>
-            </div>
-            <div class="license-info-row">
-              <span class="license-info-label">Username</span>
-              <span class="license-info-value" id="licenseInfoKey">-</span>
-            </div>
-            <div class="license-info-row">
-              <span class="license-info-label">Plan</span>
-              <span class="license-info-value" id="licenseInfoPlan">-</span>
-            </div>
-            <div class="license-info-row">
-              <span class="license-info-label">Expires</span>
-              <span class="license-info-value" id="licenseInfoExpiry">-</span>
-            </div>
-          </div>
-        </div>
-        <div class="modal-buttons">
-          <button class="btn btn-secondary" id="licenseInfoCloseBtn">Close</button>
-          <button class="btn btn-danger" id="deactivateLicenseBtn"><i class="bx bx-log-out"></i> Logout</button>
-        </div>
+  <div class="modal-overlay" id="settingsBackupModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span><i class="bx bx-cog"></i> Backup & Restore</span>
+      <button class="modal-close" id="settingsBackupClose"><i class="bx bx-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="settings-backup-desc">Export all DartZoom settings including OBS config, checkout routes, sound settings and action lists.</p>
+      <div class="settings-backup-actions">
+        <button class="btn btn-backup settings-backup-export" id="settingsExportBtn">
+          <i class="bx bx-download"></i> Export Settings
+        </button>
+        <button class="btn btn-backup settings-backup-import" id="settingsImportBtn">
+          <i class="bx bx-upload"></i> Import Settings
+        </button>
+      </div>
+      <div class="settings-backup-hint">
+        <i class="bx bx-info-circle"></i> This saves/restores all extension settings. OBS filter positions are backed up separately via "Export Settings" in the Filters section.
       </div>
     </div>
-  
-  <div class="button-row">
-    <button class="btn btn-primary" id="saveBtn">Save</button>
-    <button class="btn btn-secondary" id="reconnectBtn">Reconnect</button>
+    <div class="modal-buttons">
+      <button class="btn btn-secondary" id="settingsBackupCloseBtn">Close</button>
+    </div>
   </div>
+</div>
+<input type="file" id="settingsImportFileInput" accept=".json" class="is-hidden">
+
+
+<div class="button-row">
+    <button class="btn btn-save" id="saveBtn"><i class="bx bx-save"></i> Save</button>
+    <button class="btn btn-reconnect" id="reconnectBtn"><i class="bx bx-refresh"></i> Reconnect</button>
+</div>
   <div class="input-hint hint-center">Auto-save enabled - changes are saved automatically</div>
   
   <div class="test-section">
@@ -390,7 +411,16 @@
     <i class="bx bxl-discord-alt discord-icon"></i>
     Join Discord
   </a>
+
+  <a href="https://github.com/manuel1234567532/dartzoom-releases" target="_blank" class="github-btn">
+    <i class="bx bxl-github github-icon"></i>
+    Releases &amp; Changelog
+  </a>
   
+  <div class="made-by-footer">
+    Made by <a href="https://discord.com/users/424319034528366612" target="_blank" class="made-by-link">Lobiix</a>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

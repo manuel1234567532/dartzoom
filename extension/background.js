@@ -64,6 +64,8 @@ let predictedSegment = null;
 
 let showingPrediction = false;
 
+let turnComplete = false;  // ★ True after 3rd dart until turn actually changes
+
 
 
 // Settings
@@ -93,6 +95,8 @@ let settings = {
   filterEasing: 2,  // Easing function index (default: Kubisch/Cubic = 2)
 
   filterEasingType: 3,  // Easing type: 0=None, 1=In, 2=Out, 3=InOut (default: Ease In and Out = 3)
+
+  customCheckoutRoutes: [],
 
   // Sound settings
 
@@ -342,6 +346,26 @@ async function generateAuthString(password, salt, challenge) {
 
 }
 
+let keepAliveInterval = null;
+
+function startKeepAlive() {
+  stopKeepAlive();
+  keepAliveInterval = setInterval(() => {
+    chrome.storage.local.set({ _swKeepAlive: Date.now() });
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      sendRequest('GetVersion', {}, () => {});
+    }
+  }, 20000);
+}
+
+function stopKeepAlive() {
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
+  }
+  chrome.storage.local.remove('_swKeepAlive');
+}
+
 
 
 // ============== OBS CONNECTION ==============
@@ -394,17 +418,12 @@ function connectOBS() {
 
       
 
-      if (msg.op === 2) {
-
-        obsIdentified = true;
-
-        log('[OBS] ✓ Connected!');
-
-        broadcastStatus('connected');
-
-        getCurrentScene();
-
-      }
+if (msg.op === 2) {
+  obsIdentified = true;
+  broadcastStatus('connected');
+  getCurrentScene();
+  startKeepAlive();  // ← NEU
+}
 
       
 
@@ -442,15 +461,12 @@ function connectOBS() {
 
     
 
-    ws.onclose = () => {
-
-      obsIdentified = false;
-
-      broadcastStatus('disconnected');
-
-      if (settings.enabled) setTimeout(connectOBS, 5000);
-
-    };
+ws.onclose = () => {
+  obsIdentified = false;
+  stopKeepAlive();  // ← NEU
+  broadcastStatus('disconnected');
+  if (settings.enabled) setTimeout(connectOBS, 5000);
+};
 
     
 
@@ -786,6 +802,8 @@ async function activateMoveFilter(filterName) {
 
 
 
+// ★ CHANGE 1: showSegmentCamera — Im Checkout kürzere Anzeige (max 1s statt volle throwDuration)
+
 async function showSegmentCamera(segmentName, keepShowing = false) {
 
   const filter = getFilterForSegment(segmentName);
@@ -820,6 +838,14 @@ async function showSegmentCamera(segmentName, keepShowing = false) {
 
   if (!keepShowing) {
 
+    // ★ Im Checkout-Bereich: kürzere Anzeige damit schneller zur nächsten Prediction gewechselt wird
+
+    const inCheckout = myCurrentScore > 0 && myCurrentScore <= (settings.checkoutScore || 170);
+
+    const displayTime = inCheckout ? Math.min(settings.throwDuration, 1000) : settings.throwDuration;
+
+    
+
     throwDisplayTimeout = setTimeout(async () => {
 
       throwDisplayTimeout = null;
@@ -840,7 +866,7 @@ async function showSegmentCamera(segmentName, keepShowing = false) {
 
       }
 
-    }, settings.throwDuration);
+    }, displayTime);
 
   }
 
@@ -850,62 +876,43 @@ async function showSegmentCamera(segmentName, keepShowing = false) {
 
 // ============== SMART PREDICTION LOGIC ==============
 
-
-
 function getPredictedSegment() {
-
   const remainingScore = myCurrentScore;
-
   
-
-  log(`[Predict] Score: ${remainingScore}, T20 streak: ${t20Streak}`);
-
+  log(`[Predict] Score: ${remainingScore}, T20 streak: ${t20Streak}, dartsThrown: ${dartsThrown}`);
   
-
   if (!remainingScore || remainingScore <= 0) {
-
     return null;
-
   }
-
   
-
   if (remainingScore > settings.checkoutScore) {
-
     if (t20Streak >= 2) {
-
       log(`[Predict] T20 streak ${t20Streak} - staying on T20`);
-
       return 'T20';
-
     }
-
     return null;
-
   }
-
   
-
-  // CHECKOUT RANGE - Use Autodarts checkout guide
-
-  if (checkoutGuide && checkoutGuide.length > 0) {
-
-    const nextDart = checkoutGuide[0];
-
-    if (nextDart && nextDart.name) {
-
-      log(`[Predict] Checkout guide: ${nextDart.name}`);
-
-      return nextDart.name;
-
+  // ★ CUSTOM CHECKOUT ROUTES - Check first (highest priority)
+  if (settings.customCheckoutRoutes && settings.customCheckoutRoutes.length > 0) {
+    const customRoute = settings.customCheckoutRoutes.find(r => r.score === remainingScore);
+    if (customRoute && customRoute.darts && customRoute.darts.length > 0) {
+      const nextDart = customRoute.darts[0];
+      log(`[Predict] ★ Custom route for ${remainingScore}: ${customRoute.darts.join(' → ')} | Zooming: ${nextDart}`);
+      return nextDart;
     }
-
   }
-
   
-
+  // FALLBACK: Autodarts checkout guide
+  if (checkoutGuide && checkoutGuide.length > 0) {
+    const nextDart = checkoutGuide[0];
+    if (nextDart && nextDart.name) {
+      log(`[Predict] Checkout guide: ${nextDart.name}`);
+      return nextDart.name;
+    }
+  }
+  
   return null;
-
 }
 
 
@@ -1117,43 +1124,33 @@ async function handleStateUpdate(state) {
     handleTurnChange(isMyTurn, false);
 
   } else if (isMyTurn) {
-
-    if (dartsThrown < 3) {
-
-      if (inCheckout && dartsThrown > 0) {
-
-        log(`[State] Checkout - waiting 1.5s`);
-
-        setTimeout(async () => {
-
-          if (gameActive && isMyTurn && dartsThrown < 3 && !isBusted) {
-
-            updatePredictionCamera();
-
-          }
-
-        }, 1500);
-
+    // ★ After 3rd dart: turnComplete is true until turn actually changes
+    // This prevents the prediction flash when the new score comes in
+    if (turnComplete) {
+      log(`[State] Turn complete — blocking prediction, waiting for turn change`);
+      if (throwDisplayTimeout) {
+        // Letzter Wurf wird noch angezeigt — Timer laufen lassen
       } else {
-
-        updatePredictionCamera();
-
+        returnToDefault();
       }
-
+    } else if (dartsThrown < 3) {
+      // Wenn im Checkout und ein throwDisplay-Timer läuft, sofort canceln
+      // damit die neue Prediction ohne Verzögerung angezeigt wird
+      if (inCheckout && dartsThrown > 0 && throwDisplayTimeout) {
+        clearTimeout(throwDisplayTimeout);
+        throwDisplayTimeout = null;
+        log(`[State] Checkout - cancelled display timer, updating prediction immediately`);
+      }
+      updatePredictionCamera();
     } else {
-
-      setTimeout(async () => {
-
-        if (gameActive && isMyTurn && dartsThrown >= 3) {
-
-          await returnToDefault();
-
-        }
-
-      }, 2000);
-
+      // dartsThrown >= 3 aber turnComplete nicht gesetzt (Fallback)
+      if (throwDisplayTimeout) {
+        log(`[State] 3 darts thrown - letting throw display finish, then default`);
+      } else {
+        log(`[State] 3 darts thrown - returning to default`);
+        returnToDefault();
+      }
     }
-
   }
 
 }
@@ -1185,6 +1182,8 @@ async function handleTurnChange(myTurn, preserveStreak = false) {
   predictedSegment = null;
 
   isBusted = false;
+
+  turnComplete = false;  // ★ Reset — new turn starts
 
   
 
@@ -1430,7 +1429,11 @@ async function handleThrow(segment) {
 
   dartsThrown++;
 
-  
+  // ★ Mark turn as complete after 3rd dart — prevents prediction flash before turn change
+  if (dartsThrown >= 3) {
+    turnComplete = true;
+    log(`[Throw] 3rd dart thrown — turn complete, blocking predictions`);
+  }
 
   const isT20 = segmentName === 'T20';
 
@@ -1487,17 +1490,17 @@ async function handleThrow(segment) {
   t20Streak = 0;
 
   
-
-  if (predictedSegment && myCurrentScore <= checkoutThreshold) {
-
-    if (segmentName === predictedSegment) {
-
-      log(`[Predict] ✓ HIT ${predictedSegment}!`);
-
+  // ★ CHANGE 3: Im Checkout — Wurf kurz anzeigen, dann kommt nächste Prediction via State-Update
+  if (myCurrentScore <= checkoutThreshold && myCurrentScore > 0) {
+    if (predictedSegment) {
+      if (segmentName === predictedSegment) {
+        log(`[Predict] ✓ HIT ${predictedSegment}!`);
+      }
     }
-
+    // Wurf anzeigen (showSegmentCamera nutzt jetzt max 1s im Checkout)
+    await showSegmentCamera(segmentName, false);
+    return;
   }
-
 }
 
 
@@ -1739,83 +1742,52 @@ function updateFilterSettings(sourceName, filterName, duration, easingFunction, 
 // Update all filters with new duration, easing function and type
 
 async function updateAllFilters(sourceName, duration, easingFunction, easingType) {
-
   if (!sourceName || !obsIdentified) {
-
     chrome.runtime.sendMessage({ type: 'filterUpdateDone', success: false }).catch(() => {});
-
+    chrome.storage.local.set({ _filterUpdateProgress: { done: true, success: false, current: 0, total: 0 } });
     return;
-
   }
-
-  
-
-  
 
   const total = ALL_FILTER_NAMES.length;
-
   let successCount = 0;
-
   let errorCount = 0;
 
-  
+  // ★ Keep-alive: Prevent service worker from sleeping on macOS
+  // chrome.storage.local calls keep the SW alive in MV3
+  const keepAlive = setInterval(() => {
+    chrome.storage.local.set({ _swKeepAlive: Date.now() });
+  }, 20000);
 
-  for (let i = 0; i < ALL_FILTER_NAMES.length; i++) {
+  // Write initial progress to storage (popup polls this as fallback)
+  chrome.storage.local.set({ _filterUpdateProgress: { done: false, current: 0, total, filterName: '' } });
 
-    const filterName = ALL_FILTER_NAMES[i];
+  try {
+    for (let i = 0; i < ALL_FILTER_NAMES.length; i++) {
+      const filterName = ALL_FILTER_NAMES[i];
 
-    
+      // Send progress via message AND storage (storage = fallback if message fails on macOS)
+      const progressData = { done: false, current: i + 1, total, filterName };
+      chrome.runtime.sendMessage({ type: 'filterUpdateProgress', current: i + 1, total, filterName }).catch(() => {});
+      chrome.storage.local.set({ _filterUpdateProgress: progressData });
 
-    // Send progress update
+      const success = await updateFilterSettings(sourceName, filterName, duration, easingFunction, easingType);
+      if (success) {
+        successCount++;
+      } else {
+        errorCount++;
+      }
 
-    chrome.runtime.sendMessage({
-
-      type: 'filterUpdateProgress',
-
-      current: i + 1,
-
-      total: total,
-
-      filterName: filterName
-
-    }).catch(() => {});
-
-    
-
-    const success = await updateFilterSettings(sourceName, filterName, duration, easingFunction, easingType);
-
-    if (success) {
-
-      successCount++;
-
-    } else {
-
-      errorCount++;
-
+      // Small delay between updates
+      await sleep(100);
     }
-
-    
-
-    // Small delay between updates (longer because we do get+set per filter)
-
-    await sleep(100);
-
+  } finally {
+    clearInterval(keepAlive);
+    chrome.storage.local.remove('_swKeepAlive');
   }
 
-  
-
-  chrome.runtime.sendMessage({ 
-
-    type: 'filterUpdateDone', 
-
-    success: errorCount === 0,
-
-    successCount,
-
-    errorCount
-
-  }).catch(() => {});
-
+  const result = { done: true, success: errorCount === 0, successCount, errorCount };
+  chrome.runtime.sendMessage({ type: 'filterUpdateDone', ...result }).catch(() => {});
+  chrome.storage.local.set({ _filterUpdateProgress: result });
 }
 
 
@@ -1887,6 +1859,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     t20Streak = 0;
 
     dartsThrown = 0;
+
+    turnComplete = false;  // ★ Reset
 
     sendResponse({ success: true });
 
@@ -1975,6 +1949,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'updateSettings') {
 
     settings = { ...settings, ...message.settings };
+
+    log('[DartZoom] Custom Routes loaded:', JSON.stringify(settings.customCheckoutRoutes));
 
     chrome.storage.local.set(message.settings);
 
@@ -2135,11 +2111,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
 
   if (message.type === 'updateAllFilters') {
-
-    updateAllFilters(message.sourceName, message.duration, message.easing, message.easingType);
-
+    // ★ Wrap in async IIFE to keep service worker alive during long operation
+    (async () => {
+      await updateAllFilters(message.sourceName, message.duration, message.easing, message.easingType);
+    })();
     sendResponse({ success: true });
-
   }
 
 
@@ -2744,7 +2720,7 @@ function getAvailableFilterKinds() {
 
 
 
-const VERSION = '1.8.4';
+const VERSION = '1.8.8';
 
 
 
@@ -2760,7 +2736,7 @@ chrome.storage.local.get([
 
   'gameOnShow', 'gameOnHide', 'gameEndShow', 'gameEndHide',
 
-  'myTurnShow', 'myTurnHide', 'opponentTurnShow', 'opponentTurnHide'
+  'myTurnShow', 'myTurnHide', 'opponentTurnShow', 'opponentTurnHide', 'customCheckoutRoutes'
 
 ], (result) => {
 
@@ -2776,7 +2752,8 @@ chrome.storage.local.get([
 
   if (result.enabled !== undefined) settings.enabled = result.enabled;
 
-  
+  if (result.customCheckoutRoutes) settings.customCheckoutRoutes = result.customCheckoutRoutes;
+  log('[DartZoom] Custom Checkout Routes:', settings.customCheckoutRoutes.length);
 
   // Handle migration from old single username to usernames array
 

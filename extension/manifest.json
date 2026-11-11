@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "DartZoom - Automated Camera Zoom",
-  "version": "1.8.4",
+  "version": "1.8.8",
   "description": "Controls OBS Move Transition filters based on throws",
   "permissions": ["storage"],
   "host_permissions": [
-    "https://play.autodarts.io/*",
+    "https://play.autodarts.com/*",
     "https://followdarts.com/*",
     "http://localhost:3000/*"
   ],
@@ -16,7 +16,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://play.autodarts.io/*"],
+      "matches": ["https://play.autodarts.com/*"],
       "js": ["injector.js"],
       "run_at": "document_start"
     }
@@ -38,7 +38,7 @@
   "web_accessible_resources": [
     {
       "resources": ["pageScript.js", "logo.png", "logo-header.png"],
-      "matches": ["https://play.autodarts.io/*"]
+      "matches": ["https://play.autodarts.com/*"]
     }
   ]
 }

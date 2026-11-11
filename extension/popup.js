@@ -1,125 +1,8 @@
-// ============================================
-// CONFIGURATION
-// ============================================
-const LICENSE_API_URL = 'https://followdarts.com/api/license';
-const APP_KEY = 'DartZoom';
-
 document.addEventListener('DOMContentLoaded', () => {
 
-  // ============== AUTH GUARD ==============
+  initMainApp();
 
-  chrome.storage.local.get(['authUsername', 'authPassword', 'authValid'], (result) => {
-    if (!result.authUsername || !result.authPassword || !result.authValid) {
-      window.location.href = 'auth.html';
-      return;
-    }
-
-    verifySession(result.authUsername, result.authPassword);
-    initMainApp();
-  });
-
-  async function verifySession(username, password) {
-    try {
-      const res = await fetch(`${LICENSE_API_URL}/check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, app: APP_KEY, version: chrome.runtime.getManifest().version })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        chrome.storage.local.set({ authCheckedAt: Date.now() });
-        // ★ Update-Info speichern
-        if (data.updateAvailable) {
-          chrome.storage.local.set({ updateAvailable: true, downloadUrl: data.downloadUrl || null });
-        } else if (data.latestVersion) {
-          chrome.storage.local.set({ latestVersion: data.latestVersion, downloadUrl: data.downloadUrl || null });
-          chrome.storage.local.remove('updateAvailable');
-        }
-        // ★ Subscription-Info speichern
-        if (data.subscription) chrome.storage.local.set({ subscription: data.subscription });
-        if (data.expiry) chrome.storage.local.set({ expiry: data.expiry });
-        if (data.timeleft) chrome.storage.local.set({ timeleft: data.timeleft });
-      } else if (data.banned) {
-        chrome.storage.local.set({ authValid: false }, () => {
-          window.location.href = 'auth.html';
-        });
-      } else {
-        chrome.storage.local.set({ authValid: false }, () => {
-          window.location.href = 'auth.html';
-        });
-      }
-    } catch (e) {
-      console.log('[Auth] Server unreachable, grace period active');
-    }
-  }
-
-  // ============== LOGOUT ==============
-
-  function logout() {
-    if (!confirm('Are you sure you want to log out?')) return;
-    chrome.storage.local.remove(['authUsername', 'authPassword', 'authValid', 'authCheckedAt'], () => {
-      window.location.href = 'auth.html';
-    });
-  }
-
-  // ============== UPDATE CHECK ==============
-
-  async function checkForUpdate() {
-    const updateBanner = document.getElementById('updateBanner');
-    if (!updateBanner) return;
-
-    try {
-      const stored = await new Promise(r => chrome.storage.local.get(['updateAvailable', 'latestVersion', 'downloadUrl'], r));
-      
-      let hasUpdate = false;
-      
-      // Weg 1: Server hat invalidver erkannt (KeyAuth Version höher als Server)
-      if (stored.updateAvailable) {
-        hasUpdate = true;
-      }
-      
-      // Weg 2: Version aus KeyAuth ist höher als Extension
-      if (stored.latestVersion) {
-        const local = chrome.runtime.getManifest().version;
-        if (stored.latestVersion !== local && isNewerVersion(stored.latestVersion, local)) {
-          hasUpdate = true;
-        }
-      }
-      
-      if (hasUpdate) {
-        updateBanner.classList.add('show');
-        
-        // Show version number if available
-        const updateText = document.getElementById('updateText');
-        if (updateText && stored.latestVersion) {
-          updateText.textContent = `A new version v${stored.latestVersion} of DartZoom is ready`;
-        }
-        
-        const updateBtn = document.getElementById('updateBtn');
-        if (updateBtn) {
-          const url = stored.downloadUrl || 'https://discord.gg/nMb3X9sWgv';
-          updateBtn.addEventListener('click', () => {
-            window.open(url, '_blank');
-          });
-        }
-      }
-    } catch (e) {
-      console.log('[Update] Could not check for updates');
-    }
-  }
-
-  function isNewerVersion(remote, local) {
-    const r = remote.split('.').map(Number);
-    const l = local.split('.').map(Number);
-    for (let i = 0; i < Math.max(r.length, l.length); i++) {
-      const rv = r[i] || 0;
-      const lv = l[i] || 0;
-      if (rv > lv) return true;
-      if (rv < lv) return false;
-    }
-    return false;
-  }
+});
 
 function initMainApp() {
   const statusDot = document.getElementById('statusDot');
@@ -145,12 +28,7 @@ function initMainApp() {
   const zoomSoundInput = document.getElementById('zoomSound');
   const defaultSoundInput = document.getElementById('defaultSound');
 
-      const licenseInfoBtn = document.getElementById('licenseInfoBtn');
-    const licenseInfoModal = document.getElementById('licenseInfoModal');
-    const licenseInfoClose = document.getElementById('licenseInfoClose');
-    const licenseInfoCloseBtn = document.getElementById('licenseInfoCloseBtn');
-    const licenseInfoKey = document.getElementById('licenseInfoKey');
-    const deactivateLicenseBtn = document.getElementById('deactivateLicenseBtn');
+
   
   const saveBtn = document.getElementById('saveBtn');
   const reconnectBtn = document.getElementById('reconnectBtn');
@@ -165,6 +43,7 @@ function initMainApp() {
 
   // Usernames list
   let usernames = [];
+  let customCheckoutRoutes = [];
 
   // Action lists data
   const actionLists = {
@@ -211,6 +90,7 @@ function initMainApp() {
       filterEasingType: parseInt(filterEasingTypeSelect.value) || 3,
       zoomSound: zoomSoundInput.value.trim(),
       defaultSound: defaultSoundInput.value.trim(),
+      customCheckoutRoutes: customCheckoutRoutes,
       ...actionListValues
     };
     
@@ -259,6 +139,135 @@ function initMainApp() {
       });
     });
   }
+
+  function normalizeDartName(name) {
+  const n = name.trim().toUpperCase();
+  if (n === 'BULL' || n === '50' || n === 'BULLSEYE') return 'Bull';
+  if (n === 'DBULL' || n === 'D-BULL' || n === 'D25' || n === '25' || n === 'OUTERBULL' || n === 'OUTER BULL' || n === 'DB') return 'DBull';
+  const match = n.match(/^([SDT])(\d{1,2})$/);
+  if (match) {
+    const prefix = match[1];
+    const num = parseInt(match[2]);
+    if (num >= 1 && num <= 20) return `${prefix}${num}`;
+  }
+  return null;
+  }
+
+  function getDartTagClass(dart) {
+  if (dart.startsWith('D')) return 'double';
+  if (dart.startsWith('T')) return 'triple';
+  if (dart === 'Bull' || dart === 'DBull') return 'bull';
+  return 'single';
+  }
+
+  function renderCheckoutRoutes() {
+  const listEl = document.getElementById('checkoutRoutesList');
+  const emptyEl = document.getElementById('checkoutRoutesEmpty');
+  if (!listEl) return;
+  
+  customCheckoutRoutes.sort((a, b) => b.score - a.score);
+  
+  if (customCheckoutRoutes.length === 0) {
+    listEl.innerHTML = '';
+    if (emptyEl) emptyEl.classList.remove('is-hidden');
+    updateQuickAddButtons();
+    return;
+  }
+  
+  if (emptyEl) emptyEl.classList.add('is-hidden');
+  
+  listEl.innerHTML = customCheckoutRoutes.map((route, index) => `
+    <div class="checkout-route-item" data-index="${index}">
+      <span class="checkout-route-score">${route.score}</span>
+      <span class="checkout-route-arrow"><i class="bx bx-right-arrow-alt"></i></span>
+      <div class="checkout-route-darts">
+        ${route.darts.map(dart => 
+          `<span class="checkout-dart-tag ${getDartTagClass(dart)}">${dart}</span>`
+        ).join('')}
+      </div>
+      <button class="remove-btn" data-index="${index}">×</button>
+    </div>
+  `).join('');
+  
+  listEl.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const index = parseInt(e.target.dataset.index);
+      customCheckoutRoutes.splice(index, 1);
+      renderCheckoutRoutes();
+      immediateSave();
+    });
+  });
+  
+  updateQuickAddButtons();
+}
+
+function updateQuickAddButtons() {
+  document.querySelectorAll('.quick-add-btn').forEach(btn => {
+    const score = parseInt(btn.dataset.score);
+    const exists = customCheckoutRoutes.some(r => r.score === score);
+    btn.classList.toggle('already-added', exists);
+  });
+}
+
+function addCheckoutRoute(score, dartsString) {
+  const scoreNum = parseInt(score);
+  if (isNaN(scoreNum) || scoreNum < 2 || scoreNum > 170) {
+    alert('Score must be between 2 and 170');
+    return false;
+  }
+  
+  const dartParts = dartsString.split(',').map(d => d.trim()).filter(d => d);
+  if (dartParts.length === 0 || dartParts.length > 3) {
+    alert('Enter 1-3 darts separated by comma');
+    return false;
+  }
+  
+  const normalizedDarts = [];
+  for (const dart of dartParts) {
+    const normalized = normalizeDartName(dart);
+    if (!normalized) {
+      alert(`Invalid dart: "${dart}"\n\nUse: S1-S20, D1-D20, T1-T20, Bull, DBull`);
+      return false;
+    }
+    normalizedDarts.push(normalized);
+  }
+  
+  // Replace existing route for same score
+  customCheckoutRoutes = customCheckoutRoutes.filter(r => r.score !== scoreNum);
+  customCheckoutRoutes.push({ score: scoreNum, darts: normalizedDarts });
+  
+  renderCheckoutRoutes();
+  return true;
+}
+
+document.getElementById('addCheckoutRouteBtn').addEventListener('click', () => {
+  const scoreInput = document.getElementById('checkoutRouteScore');
+  const dartsInput = document.getElementById('checkoutRouteDarts');
+  
+  if (addCheckoutRoute(scoreInput.value, dartsInput.value)) {
+    scoreInput.value = '';
+    dartsInput.value = '';
+    scoreInput.focus();
+    immediateSave();
+  }
+});
+
+document.getElementById('checkoutRouteDarts').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('addCheckoutRouteBtn').click();
+});
+
+document.getElementById('checkoutRouteScore').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('checkoutRouteDarts').focus();
+});
+
+document.querySelectorAll('.quick-add-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (addCheckoutRoute(btn.dataset.score, btn.dataset.darts)) {
+      immediateSave();
+    }
+  });
+});
+
 
   document.getElementById('addUsernameBtn').addEventListener('click', () => {
     usernames.push('');
@@ -424,7 +433,7 @@ function initMainApp() {
       'defaultFilter', 'throwDuration', 'checkoutScore', 'filterDuration', 'filterEasing', 'filterEasingType', 'lastThrow',
       'zoomSound', 'defaultSound',
       'gameOnShow', 'gameOnHide', 'gameEndShow', 'gameEndHide',
-      'myTurnShow', 'myTurnHide', 'opponentTurnShow', 'opponentTurnHide'
+      'myTurnShow', 'myTurnHide', 'opponentTurnShow', 'opponentTurnHide', 'customCheckoutRoutes'
     ], (result) => {
       obsUrlInput.value = result.obsUrl || 'ws://localhost:4455';
       if (result.obsPassword) obsPasswordInput.value = result.obsPassword;
@@ -461,9 +470,14 @@ function initMainApp() {
       if (result.myTurnHide) actionLists.myTurnHide = migrateOldFormat(result.myTurnHide);
       if (result.opponentTurnShow) actionLists.opponentTurnShow = migrateOldFormat(result.opponentTurnShow);
       if (result.opponentTurnHide) actionLists.opponentTurnHide = migrateOldFormat(result.opponentTurnHide);
-      
+
+      if (result.customCheckoutRoutes && Array.isArray(result.customCheckoutRoutes)) {
+      customCheckoutRoutes = result.customCheckoutRoutes;
+      }
+
       Object.keys(actionLists).forEach(listId => renderActionList(listId));
-      
+
+      renderCheckoutRoutes();
       checkSetup();
     });
   }
@@ -517,17 +531,6 @@ function initMainApp() {
 
   loadStatus();
 
-  // ★ Update-Check beim Start
-  checkForUpdate();
-
-  // Dismiss update banner
-  const updateDismiss = document.getElementById('updateDismiss');
-  if (updateDismiss) {
-    updateDismiss.addEventListener('click', () => {
-      document.getElementById('updateBanner').classList.remove('show');
-    });
-  }
-
   // Auto-save on input changes
   const textInputs = [obsUrlInput, obsPasswordInput, filterSceneInput, filterSourceInput, defaultFilterInput, throwDurationInput, checkoutScoreInput, filterDurationInput, zoomSoundInput, defaultSoundInput];
   textInputs.forEach(input => {
@@ -548,54 +551,7 @@ function initMainApp() {
     });
   });
 
-      // Account Info Modal
-    licenseInfoBtn.addEventListener('click', () => {
-      chrome.storage.local.get(['authUsername', 'subscription', 'expiry', 'timeleft'], (result) => {
-        licenseInfoKey.textContent = result.authUsername || 'Unknown';
-        
-        // Plan
-        const planEl = document.getElementById('licenseInfoPlan');
-        if (planEl) {
-          planEl.textContent = result.subscription || 'Unknown';
-        }
-        
-        // Expiry
-        const expiryEl = document.getElementById('licenseInfoExpiry');
-        if (expiryEl && result.expiry) {
-          const expiryDate = new Date(result.expiry * 1000);
-          const now = Date.now();
-          const timeleft = result.timeleft || Math.floor((expiryDate.getTime() - now) / 1000);
-          
-          if (timeleft > 315360000) {
-            // Mehr als 10 Jahre = Lifetime
-            expiryEl.innerHTML = '<span class="license-lifetime"><i class="bx bx-infinite"></i> Lifetime</span>';
-          } else if (timeleft > 86400) {
-            const days = Math.floor(timeleft / 86400);
-            expiryEl.textContent = `${days} day${days !== 1 ? 's' : ''} remaining`;
-          } else if (timeleft > 3600) {
-            const hours = Math.floor(timeleft / 3600);
-            expiryEl.textContent = `${hours} hour${hours !== 1 ? 's' : ''} remaining`;
-          } else if (timeleft > 0) {
-            const mins = Math.floor(timeleft / 60);
-            expiryEl.textContent = `${mins} minute${mins !== 1 ? 's' : ''} remaining`;
-          } else {
-            expiryEl.innerHTML = '<span class="license-expired">Expired</span>';
-          }
-        } else if (expiryEl) {
-          expiryEl.textContent = '-';
-        }
-        
-        licenseInfoModal.classList.add('show');
-      });
-    });
 
-    licenseInfoClose.addEventListener('click', () => licenseInfoModal.classList.remove('show'));
-    licenseInfoCloseBtn.addEventListener('click', () => licenseInfoModal.classList.remove('show'));
-    deactivateLicenseBtn.addEventListener('click', logout);
-
-    licenseInfoModal.addEventListener('click', (e) => {
-      if (e.target === licenseInfoModal) licenseInfoModal.classList.remove('show');
-    });
 
   document.querySelectorAll('.test-btn[data-segment]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -626,10 +582,6 @@ function initMainApp() {
       if (checkSetup()) {
         updateTurnUI(message.isMyTurn);
       }
-    }
-    if (message.type === 'scoreUpdate') {
-      scoreValue.textContent = message.score;
-      statsRow.classList.add('show');
     }
     if (message.type === 'filterProgress') {
       const pct = (message.current / message.total) * 100;
@@ -840,7 +792,7 @@ function initMainApp() {
   // Update Filters Button Logic
   const updateFiltersBtn = document.getElementById('updateFiltersBtn');
   
-  updateFiltersBtn.addEventListener('click', () => {
+updateFiltersBtn.addEventListener('click', () => {
     const source = filterSourceInput.value.trim();
     if (!source) {
       alert('Please enter a Source name first!');
@@ -858,6 +810,9 @@ function initMainApp() {
     document.getElementById('progressText').textContent = '0 / 64';
     
     updateFiltersBtn.disabled = true;
+
+    // ★ Clear old progress from storage before starting
+    chrome.storage.local.remove('_filterUpdateProgress');
     
     chrome.runtime.sendMessage({
       type: 'updateAllFilters',
@@ -866,6 +821,49 @@ function initMainApp() {
       easing: easing,
       easingType: easingType
     });
+
+    // ★ Storage polling fallback (for macOS where messages can fail)
+    // Polls every 500ms, stops when done
+    const pollInterval = setInterval(() => {
+      chrome.storage.local.get('_filterUpdateProgress', (result) => {
+        const p = result._filterUpdateProgress;
+        if (!p) return;
+
+        if (p.done) {
+          // Finished — stop polling, close modal, show result
+          clearInterval(pollInterval);
+          chrome.storage.local.remove('_filterUpdateProgress');
+          document.getElementById('progressModal').classList.remove('show');
+          
+          updateFiltersBtn.classList.remove('btn-state-success', 'btn-state-warning', 'btn-state-error');
+          
+          if (p.success) {
+            updateFiltersBtn.innerHTML = '<i class="bx bx-check"></i> Filters Updated!';
+            updateFiltersBtn.classList.add('btn-state-success');
+          } else if (p.successCount > 0) {
+            updateFiltersBtn.innerHTML = `<i class="bx bx-error"></i> ${p.successCount}/${p.successCount + p.errorCount} Updated`;
+            updateFiltersBtn.classList.add('btn-state-warning');
+          } else {
+            updateFiltersBtn.innerHTML = '<i class="bx bx-x"></i> Failed - Check Console';
+            updateFiltersBtn.classList.add('btn-state-error');
+          }
+          
+          setTimeout(() => {
+            updateFiltersBtn.innerHTML = '<i class="bx bx-refresh"></i> Update Filter Settings';
+            updateFiltersBtn.classList.remove('btn-state-success', 'btn-state-warning', 'btn-state-error');
+            updateFiltersBtn.disabled = false;
+          }, 3000);
+        } else if (p.current && p.total) {
+          // In progress — update UI
+          const pct = (p.current / p.total) * 100;
+          setProgressWidth(pct);
+          document.getElementById('progressText').textContent = `${p.current} / ${p.total} - ${p.filterName || ''}`;
+        }
+      });
+    }, 500);
+
+    // ★ Safety timeout: stop polling after 60s (in case something goes very wrong)
+    setTimeout(() => clearInterval(pollInterval), 60000);
   });
 
   // ============== FILTER BACKUP / RESTORE ==============
@@ -954,5 +952,135 @@ function initMainApp() {
     reader.readAsText(file);
   });
 
-  }   // ← schließt initMainApp()
-});   // ← schließt DOMContentLoaded
+  // ============== SETTINGS BACKUP / RESTORE ==============
+
+const settingsBackupBtn = document.getElementById('settingsBackupBtn');
+const settingsBackupModal = document.getElementById('settingsBackupModal');
+const settingsBackupClose = document.getElementById('settingsBackupClose');
+const settingsBackupCloseBtn = document.getElementById('settingsBackupCloseBtn');
+const settingsExportBtn = document.getElementById('settingsExportBtn');
+const settingsImportBtn = document.getElementById('settingsImportBtn');
+const settingsImportFileInput = document.getElementById('settingsImportFileInput');
+
+// Open modal
+settingsBackupBtn.addEventListener('click', () => {
+  settingsBackupModal.classList.add('show');
+});
+
+// Close modal
+settingsBackupClose.addEventListener('click', () => settingsBackupModal.classList.remove('show'));
+settingsBackupCloseBtn.addEventListener('click', () => settingsBackupModal.classList.remove('show'));
+settingsBackupModal.addEventListener('click', (e) => {
+  if (e.target === settingsBackupModal) settingsBackupModal.classList.remove('show');
+});
+
+// ---- EXPORT ----
+settingsExportBtn.addEventListener('click', () => {
+  // Collect ALL settings keys
+  const settingsKeys = [
+    'obsUrl', 'obsPassword', 'enabled', 'usernames',
+    'filterScene', 'filterSource', 'defaultFilter',
+    'throwDuration', 'checkoutScore', 'filterDuration',
+    'filterEasing', 'filterEasingType',
+    'zoomSound', 'defaultSound',
+    'customCheckoutRoutes',
+    'gameOnShow', 'gameOnHide',
+    'gameEndShow', 'gameEndHide',
+    'myTurnShow', 'myTurnHide',
+    'opponentTurnShow', 'opponentTurnHide'
+  ];
+
+  chrome.storage.local.get(settingsKeys, (result) => {
+    const exportData = {
+      _type: 'dartzoom-settings',
+      _version: document.querySelector('.version-badge')?.textContent || 'unknown',
+      _exportDate: new Date().toISOString(),
+      settings: result
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const filename = `dartzoom-settings-${new Date().toISOString().slice(0, 10)}.json`;
+
+    if (chrome.downloads && chrome.downloads.download) {
+      chrome.downloads.download({ url, filename, saveAs: true }, () => {
+        URL.revokeObjectURL(url);
+      });
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }
+
+    settingsExportBtn.innerHTML = '<i class="bx bx-check"></i> Exported!';
+    settingsExportBtn.classList.add('btn-state-success');
+    setTimeout(() => {
+      settingsExportBtn.innerHTML = '<i class="bx bx-download"></i> Export Settings';
+      settingsExportBtn.classList.remove('btn-state-success');
+    }, 2000);
+  });
+});
+
+// ---- IMPORT ----
+settingsImportBtn.addEventListener('click', () => {
+  settingsImportFileInput.value = '';
+  settingsImportFileInput.click();
+});
+
+settingsImportFileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+
+      // Validate
+      if (!data.settings || data._type !== 'dartzoom-settings') {
+        alert('Invalid settings file. Please select a valid DartZoom settings backup.');
+        return;
+      }
+
+      const date = data._exportDate ? new Date(data._exportDate).toLocaleString() : 'Unknown';
+      const version = data._version || 'Unknown';
+
+      if (!confirm(
+        `Import DartZoom settings?\n\n` +
+        `Version: ${version}\n` +
+        `Date: ${date}\n\n` +
+        `This will overwrite ALL current extension settings.\n` +
+        `OBS filter positions are NOT affected.`
+      )) {
+        return;
+      }
+
+      // Apply settings to storage
+      chrome.storage.local.set(data.settings, () => {
+        // Notify background to reload
+        chrome.runtime.sendMessage({ type: 'updateSettings', settings: data.settings }, () => {
+          settingsImportBtn.innerHTML = '<i class="bx bx-check"></i> Imported!';
+          settingsImportBtn.classList.add('btn-state-success');
+          setTimeout(() => {
+            settingsImportBtn.innerHTML = '<i class="bx bx-upload"></i> Import Settings';
+            settingsImportBtn.classList.remove('btn-state-success');
+            // Reload popup to reflect changes
+            location.reload();
+          }, 1500);
+        });
+      });
+
+    } catch (err) {
+      alert('Invalid JSON file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+}   // ← schließt initMainApp()
